@@ -184,5 +184,5 @@ presencia
 #   campo y `../datasets/raw/consideraciones.txt` para las notas generales
 #   de la cátedra (solo clientes Paquete Premium, montos en pesos
 #   argentinos, fechas relativas, etc).
-# - Próximo paso: correr `clases/z101_target_sql.ipynb` para construir
-#   `clase_ternaria` y generar `datasets/processed/competencia_01.csv`.
+# - `clase_ternaria` se construye en `exp/z101_target_sql/target_sql.py`,
+#   que genera `datasets/processed/competencia_01.csv`.
