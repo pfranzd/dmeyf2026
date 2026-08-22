@@ -1,0 +1,156 @@
+#,campo,unidad,Significado
+1,numero_de_cliente,id,ID único que se asigna a cada cliente.  Clientes mas nuevos tienen Ids mayores.  Si un ex cliente regresa se le asigna el  numero_de_cliente que ya tuvo asignado la primera vez.
+2,foto_mes,fecha,mes correspondiente a la foto de los datos del datawarehouse. La fecha 201907 indica que la foto fue obtenida el 31-julio-2019 a las 23:59:59
+3,active_quarter,--,"Indica si el cliente ha realizado transacciones voluntarias (tipo 1) en el ultimo timestre . Que el banco cobre la comisión de mantenimiento de cuenta NO es un movimiento voluntario por mas que es un debito en la cuenta.  Que se cobre una cuota de una compra con tarjeta de crédito, tampoco es un movimiento voluntario.  NO mide lo mismo que ctrx_quarter"
+4,cliente_vip,--,"Indica si marketing considera a esa cliente un cliente vip al momento de obtención de la foto.  A pesar que todos estos son clientes de Paquete Premium,  el area de marketing solo considera vip a menos del  2% de los paquete premium , y da a estos clientes VIP un trato a puertas cerradas."
+5,internet,--,indica si el cliente usa servicios de HomeBanking o tiene instalada la app
+6,cliente_edad,años,Edad en años del cliente.
+7,cliente_antiguedad,meses,Antiguedad medida en meses de el cliente.  Es de la ultima vez que esa persona reingresó como cliente del banco.
+8,mrentabilidad,pesos,"Ganancia total que ha obtenido el banco de ese cliente, en ese mes."
+9,mrentabilidad_annual,pesos,"Ganancia total que el banco ha obtenido de ese cliente en el ultimo año de relacion cliente-banco,  o meses desde que ingresó si es cliente reciente."
+10,mcomisiones,pesos,Monto total de las comisiones que ha ganado el banco por ese cliente.
+11,mactivos_margen,pesos,Monto total de la ganancia que el banco ha obtenido en concepto de intereses que ha cobrado al cliente.
+12,mpasivos_margen,pesos,Monto total de la ganancia que el banco ha obtenido por el dinero/inversiones que el cliente tiene en el banco.
+13,cproductos,--,Cantidad de productos que el cliente posee con el banco. Se cuentan las familias de productos.
+14,tcuentas,--,"Cantidad de cuentas que el cliente tiene,  vale 0 si no tiene ninguna,  1 si solo tiene cajas de ahorro o solo cuentas corrientes,  2 si tiene al menos una caja de ahorro y tambien al menos una cuenta corriente."
+15,ccuenta_corriente,--,Cantidad de cuentas corrientes que tiene el cliente. Hay muy pocos clientes con mas de una cuenta corriente.
+16,mcuenta_corriente_adicional,pesos,Monto total de las cuentas corrientes adicionales que no forman parte del paquete.
+17,mcuenta_corriente,pesos,Monto total de las cuenta corriente del paquete premium
+18,ccaja_ahorro,--,Cantidad de cajas de ahorro que tiene el cliente.
+19,mcaja_ahorro,pesos,Monto total de la caja de ahorro del Paquete Premium
+20,mcaja_ahorro_adicional,pesos,Monto total de las cajas otras cajas de ahorro que no forman parte del paquete.
+21,mcaja_ahorro_dolares,pesos,"Monto total de las cajas de ahorro en dólares.  El valor esta expresado en pesos, y se considera el valor del dolar de cierre del último dia hábil del mes."
+22,cdescubierto_preacordado,--,Si tiene un acuerdo de descubierto
+23,mcuentas_saldo,pesos,Saldo total de TODAS las cuentas del cliente
+24,ctarjeta_debito,--,Cantidad de tarjetas de débito que posee el cliente.
+25,ctarjeta_debito_transacciones,--,Cantidad de transacciones que hizo el cliente con su tarjeta de débito durante el mes.
+26,mautoservicio,pesos,Monto total de las transacciones que hizo el cliente con su tarjeta de débito duirante el mes.
+27,ctarjeta_visa,--,"Cantidad de cuentas VISA que posee el cliente. Una cuenta posee un titular y puede llegar a tener varios adicionales. El titular y/o adicionales pueden tener ( o no ) un plástico vigente. Aunque no es común, un cliente SI puede ser titular de más de una cuenta VISA ."
+28,ctarjeta_visa_transacciones,--,Cantidad de transacciones efectuadas durante el mes con la tarjeta de crédito VISA
+29,mtarjeta_visa_consumo,pesos,Monto total de los consumos efectuados durante el mes con la tarjeta de crédito VISA
+30,ctarjeta_master,--,Cantidad de cuentas Mastercard que tiene la persona.  Una cuenta puede tener un plástico titular y varias plásticos adicionales.
+31,ctarjeta_master_transacciones,--,Cantidad de transacciones efectuadas durante el mes con la tarjeta de crédito MasterCard
+32,mtarjeta_master_consumo,pesos,Monto total de los consumos efectuados durante el mes con la tarjeta de crédito MasterCard
+33,cprestamos_personales,--,Cantidad de préstamos personales vigentes  del cliente
+34,mprestamos_personales,pesos,Monto total de la deuda restante de todos los préstamos personales del cliente.
+35,cprestamos_prendarios,--,Cantidad de préstamos prendarios vigentes  del cliente
+36,mprestamos_prendarios,pesos,Monto total de la deuda restante de todos los préstamos prendarios del cliente.
+37,cprestamos_hipotecarios,--,Cantidad de préstamos hipotecarios vigentes  del cliente
+38,mprestamos_hipotecarios,pesos,Monto total de la deuda restante de todos los préstamos hipotecarios del cliente.
+39,cplazo_fijo,--,Cantidad de plazos fijos que tiene el cliente Se suma la cantidad de plazos fijos en pesos mas la cantidad de plazos fijos en dolares.
+40,mplazo_fijo_dolares,pesos,Monto total de todos los plazos fijos vigentes el dólares.  El valor está convertido a pesos considerando el valor de cierre del ultimo dia habil del mes.
+41,mplazo_fijo_pesos,pesos,Monto total de todos los plazos fijos vigentes en pesos.  
+42,cinversion1,--,Cantidad de inversiones de tipo 1 que posee el cliente vigentes.
+43,minversion1_pesos,pesos,"Monto total de inversiones tipo1 , convertidos en pesos"
+44,minversion1_dolares,pesos,"Monto total de inversiones tipo1 en dolares , expresado en pesos al ultimo dia habil del mes"
+45,cinversion2,--,Cantidad de inversiones de tipo2 que posee el cliente vigentes.
+46,minversion2,pesos,Monto total de la inversión de tipo2  expresada en pesos.
+47,cseguro_vida,--,"Cantidad de seguros de vida contratados por el cliente. No se tienen en cuenta los seguros de vida obligatorios de los prestamos hipotecarios, prendarios, personales, etc"
+48,cseguro_auto,--,Cantidad de seguros automotores que el cliente posee vigentes.
+49,cseguro_vivienda,--,Cantidad de seguros de vivienda que tiene el cliente.
+50,cseguro_accidentes_personales,--,Cantidad de seguros de accidentes personales
+51,ccaja_seguridad,--,"Si el cliente tiene cajas de seguridad.  Un 0 si no tiene ninguna, un 1 si tiene al menos una caja de seguridad. { 0, 1 } son los unicos dos valores posibles ."
+52,cpayroll_trx,--,Cantidad de Acreditaciones de Haberes en relación de depencia que le hicieron al cliente en ese mes.  Un cliente puede estar en relacion de dependencia con mas de una empresa. Una empresa puede hacerle VARIOS depósitos al mismo empleado durante el mes.  Soalmente se consideran las acreditaciones de empresas que tienen un contrato con el banco.
+53,mpayroll,pesos,Monto total que le acreditaron los empleadores “acreditados”  al cliente durante el mes.
+54,mpayroll2,pesos,Monto total que le acreditaron fuera de archivo de los empleadores “acreditados”  al cliente durante el mes.
+55,cpayroll2_trx,--,Cantidad de transacciones de acreditacion de haberes en el mes
+56,ccuenta_debitos_automaticos,--,Cantidad de débitos automáticos debitados durante el mes en las cuentas  ( no tarjetas de crédito )
+57,mcuenta_debitos_automaticos,pesos,"Monto total de  débitos automáticos debitados durante el mes en las cuentas  ( no tarjetas de crédito ) . Todo está convertido a pesos argentinos, al valor de la fecha de cierre del utlimo dia habil del mes."
+58,ctarjeta_visa_debitos_automaticos,--,Cantidad de débitos automáticos debitados durante el mes en las tarjeta de crédito VISA
+59,mtarjeta_visa_debitos_automaticos,pesos,"Monto total de  débitos automáticos debitados durante el mes en la tarjeta de crédito VISA . Todo está convertido a pesos argentinos, al valor de la fecha de cierre del utlimo dia habil del mes."
+60,ctarjeta_master_debitos_automaticos,--,Cantidad de débitos automáticos debitados durante el mes en las tarjeta de crédito MasterCard
+61,mttarjeta_master_debitos_automaticos,pesos,"Monto total de  débitos automáticos debitados durante el mes en la tarjeta de crédito MasterCard . Todo está convertido a pesos argentinos, al valor de la fecha de cierre del utlimo dia habil del mes."
+62,cpagodeservicios,--,Cantidad de pagos de servicios efectuados durante el mes.
+63,mpagodeservicios,pesos,Monto total de pagos de servicios efectuados durante el mes.
+64,cpagomiscuentas,--,Cantidad de pagos efectuados durante el mes por el canal PagoMisCuentas
+65,mpagomiscuentas,pesos,Monto total en pesos argentinos de pagos efectuados durante el mes por el canal PagoMisCuentas
+66,ccajeros_propios_descuentos,--,Cantidad de descuentos con los que se benefició el cliente al utilizar su tarjeta de débito durante el mes.
+67,mcajeros_propios_descuentos,pesos,Monto total en pesos  de descuentos con los que se benefició el cliente al utilizar su tarjeta de débito durante el mes.
+68,ctarjeta_visa_descuentos,--,Cantidad de descuentos con los que se benefició el cliente al utilizar su tarjeta de crédito VISA durante el mes.
+69,mtarjeta_visa_descuentos,pesos,Monto total en pesos  de descuentos con los que se benefició el cliente al utilizar su tarjeta de crédito VISA durante el mes.
+70,ctarjeta_master_descuentos,--,Cantidad de descuentos con los que se benefició el cliente al utilizar su tarjeta de crédito MasterCard durante el mes.
+71,mtarjeta_master_descuentos,pesos,Monto total en pesos  de descuentos con los que se benefició el cliente al utilizar su tarjeta de crédito MasterCard durante el mes.
+72,ccomisiones_mantenimiento,--,Cantidad de comisiones de mantenimiento de productos cobrardas durante el banco durante el mes.
+73,mcomisiones_mantenimiento,pesos,Monto total en pesos de comisiones de mantenimiento de productos cobrardas durante el banco durante el mes.
+74,ccomisiones_otras,--,Cantidad de otras comisiones que se cobraron al cliente durante el mes.
+75,mcomisiones_otras,pesos,Monto total en pesos de otras comisiones que se cobraron al cliente durante el mes.
+76,cforex,--,Cantidad de transacciones de cambio de moneda que realizó el cliente durante el mes.
+77,cforex_buy,--,Cantidad de transacciones de compra de moneda extranjera que realizó el cliente durante el mes
+78,mforex_buy,pesos,Monto total medido en pesos de  transacciones de compra de moneda extranjera que realizó el cliente durante el mes
+79,cforex_sell,,Cantidad de transacciones de venta de moneda extranjera que realizó el cliente durante el mes
+80,mforex_sell,pesos,Monto total medido en pesos de  transacciones de venta de moneda extranjera que realizó el cliente durante el mes
+81,ctransferencias_recibidas,--,Cantidad de transferencias recibidas en todas las cuentas durante el mes. Puede ser transferencias propias o de terceros.
+82,mtransferencias_recibidas,pesos,Monto total de transferencias recibidas en todas las cuentas durante el mes. Puede ser transferencias propias o de terceros.
+83,ctransferencias_emitidas,--,Cantidad de transferencias emitidas  en todas las cuentas durante el mes. Puede ser transferencias propias o de terceros.
+84,mtransferencias_emitidas,pesos,Monto total de transferencias emitidas en todas las cuentas durante el mes. Puede ser transferencias propias o de terceros.
+85,cextraccion_autoservicio,--,Cantidad de extracciones en cajeros automáticos durante el mes
+86,mextraccion_autoservicio,pesos,Monto total de extracciones en cajeros automáticos durante el mes
+87,ccheques_depositados,--,Cantidad de cheques que se depositaron en las cuentas del cliente durante el mes.
+88,mcheques_depositados,pesos,"Monto total de los cheques que se depositaron y se pudo hacer el cobro , en las cuentas del cliente durante el mes."
+89,ccheques_emitidos,--,Cantidad de cheques del cliente que se cobraron ( ya sea por el cliente mismo o por terceros )  durante el mes .
+90,mcheques_emitidos,pesos,Monto total de cheques del cliente que se cobraron ( ya sea por el cliente mismo o por terceros )  durante el mes .
+91,ccheques_depositados_rechazados,--,Cantidad de cheques que se depositaron en cuentas del cliente y fueron rechazados durante el mes.
+92,mcheques_depositados_rechazados,pesos,Monto total de los cheques que se depositaron en cuentas del cliente y fueron rechazados durante el mes.
+93,ccheques_emitidos_rechazados,--,Cantidad de cheques emitidos por el cliente que fueron rechazados durante el mes.
+94,mcheques_emitidos_rechazados,pesos,Monto total  de cheques emitidos por el cliente que fueron rechazados durante el mes.
+95,tcallcenter,--,"{0,1} indica si la persona está adherida al canal de banca telefónica ."
+96,ccallcenter_transacciones,--,Cantidad de transacciones que el cliente efectuó durante el mes por el canal de banca telefónica.
+97,thomebanking,--,"{0, 1} indica si el cliente está adherido al Home Banking"
+98,chomebanking_transacciones,--,Cantidad de transacciones por home banking que el cliente hizo durante el mes.
+99,ccajas_transacciones,--,Cantidad de transacciones que el cliente realizó durante el mes en la linea de cajas de las sucursales del banco.
+100,ccajas_consultas,--,Cantidad de consultas que el cliente realizó durante el mes en la linea de cajas de las sucursales del banco.
+101,ccajas_depositos,--,Cantidad de depóstitos que el cliente realizó durante el mes en la linea de cajas de las sucursales del banco.
+102,ccajas_extracciones,--,Cantidad de extracciones  que el cliente realizó durante el mes en la linea de cajas de las sucursales del banco.
+103,ccajas_otras,--,Cantidad de otros tipos de transacciones  que el cliente realizó durante el mes en la linea de cajas de las sucursales del banco.
+104,catm_trx,--,Cantidad de transacciones que el cliente realizó durante el mes en cajeros automáticos propiedad del banco.
+105,matm,pesos,Monto total en pesos  de transacciones que el cliente realizó durante el mes en cajeros automáticos propiedad del banco.
+106,catm_trx_other,--,Cantidad de transacciones que el cliente realizó durante el mes en cajeros automáticos que no son propiedad del banco.
+107,matm_other,pesos,Monto total en pesos  de transacciones que el cliente realizó durante el mes en cajeros automáticos que no son propiedad del banco.
+108,ctrx_quarter,--,Cantidad de movimientos voluntarios en las cuentas bancarias ( no tarjeta de credito ) que el cliente realizó en los ultimos 90 dias.
+109,tmobile_app,--,"{ 0, 1} indica si la persona se instaló alguna vez la aplicación movil"
+110,cmobile_app_trx,--,indica la cantidad de transacciones realizadas ese mes desde la aplicacion móvil
+111,Master_delinquency,--,"{ 0, 1 }  indica si el cliente no llegó a completar el pago mínimo y esta moroso. Estos clientes NO pueden utilizar mas la tarjeta hasta tanto regularicen su situacion. Obviamente si les caen las cuotas de compras anteriores, intereses, punitorios, etc"
+112,Master_status,--,"{ 0,  6, 7, 9 }   indica el estado de la cuenta de la tarjeta de crédito. 0 abierta,  6 en proceso de cierre, 7 en proceso avanzado de cierre, 9 cuenta cerrada.   Una cuenta cerrada puede volver a abrirse !!"
+113,Master_mfinanciacion_limite,pesos,"Límite de financiacion de la tarjeta de crédito, expresado en pesos."
+114,Master_Fvencimiento,dias,"Dias para el vencimiento del plastico de la tarjeta de crédito, contados a la fecha de la foto."
+115,Master_Finiciomora,dias,"Dias desde el inicio de la mora ( el dia siguiente al vencimiento ), contados a la fecha de la foto."
+116,Master_msaldototal,pesos,"Saldo total de la tarjeta, para ese mes."
+117,Master_msaldopesos,pesos,"Saldo total el pesos de la tarjeta, para ese mes."
+118,Master_msaldodolares,pesos,"Saldo total el dólares de la tarjeta, para ese mes."
+119,Master_mconsumospesos,pesos,Monto total de los consumos en pesos efectuados por el cliente durante ese mes.
+120,Master_mconsumosdolares,pesos,Monto total de los consumos en dolares efectuados por el cliente durante ese mes.
+121,Master_mlimitecompra,pesos,"Límite de compra, valor muy importante."
+122,Master_madelantopesos,pesos,Extracciones de pesos realizadas con la tarjeta de crédito durante ese mes.
+123,Master_madelantodolares,pesos,Extracciones de dolares realizadas con la tarjeta de crédito durante ese mes.
+124,Master_fultimo_cierre,dias,"Dias desde del utlimo cierre de la tarjeta de crédito, contados a la fecha de la foto."
+125,Master_mpagado,pesos,Monto total de todos los pagos efectuados por el cliente
+126,Master_mpagospesos,pesos,Monto total de todos los pagos en pesos efectuados por el cliente
+127,Master_mpagosdolares,pesos,Monto total de todos los pagos en dólares efectuados por el cliente
+128,Master_fechaalta,dias,"Dias desde de alta de la cuenta de la tarjeta de crédito, contados a la fecha de la foto."
+129,Master_mconsumototal,pesos,"Monto total expresado en pesos,  de todos los consumos ( pesos y dolares )  efectuados por el cliente durante ese mes."
+130,Master_cconsumos,--,Cantidad de consumos con la tarjeta de credito efectuados por el cliente durante el mes.
+131,Master_cadelantosefectivo,--,Cantidad de adelantos en efectivo que el cliente realizó durante ese mes.
+132,Master_mpagominimo,pesos,Monto del pago minimo necesario para no ser moroso de la tarjeta de crédito
+133,Visa_delinquency,--,"{ 0, 1 }  indica si el cliente no llegó a completar el pago mínimo y esta moroso. Estos clientes NO pueden utilizar mas la tarjeta hasta tanto regularicen su situacion. Obviamente si les caen las cuotas de compras anteriores, intereses, punitorios, etc"
+134,Visa_status,--,"{ 0,  6, 7, 9 }   indica el estado de la cuenta de la tarjeta de crédito. 0 abierta,  6 en proceso de cierre, 7 en proceso avanzado de cierre, 9 cuenta cerrada.   Una cuenta cerrada puede volver a abrirse !!"
+135,Visa_mfinanciacion_limite,pesos,"Límite de financiacion de la tarjeta de crédito, expresado en pesos."
+136,Visa_Fvencimiento,dias,"Dias para el  vencimiento del plastico de la tarjeta de crédito, contados a la fecha de la foto"
+137,Visa_Finiciomora,dias,"Dias para el inicio de la mora ( el dia siguiente al vencimiento ), contados a la fecha de la foto"
+138,Visa_msaldototal,pesos,"Saldo total de la tarjeta, para ese mes."
+139,Visa_msaldopesos,pesos,"Saldo total el pesos de la tarjeta, para ese mes."
+140,Visa_msaldodolares,pesos,"Saldo total el dólares de la tarjeta, para ese mes."
+141,Visa_mconsumospesos,pesos,Monto total de los consumos en pesos efectuados por el cliente durante ese mes.
+142,Visa_mconsumosdolares,pesos,Monto total de los consumos en dolares efectuados por el cliente durante ese mes.
+143,Visa_mlimitecompra,pesos,"Límite de compra, valor muy importante."
+144,Visa_madelantopesos,pesos,Extracciones de pesos realizadas con la tarjeta de crédito durante ese mes.
+145,Visa_madelantodolares,pesos,Extracciones de dolares realizadas con la tarjeta de crédito durante ese mes.
+146,Visa_fultimo_cierre,dias,"Dias  del utlimo cierre de la tarjeta de crédito, contados a la fecha de la foto."
+147,Visa_mpagado,pesos,Monto total de todos los pagos efectuados por el cliente
+148,Visa_mpagospesos,pesos,Monto total de todos los pagos en pesos efectuados por el cliente
+149,Visa_mpagosdolares,pesos,Monto total de todos los pagos en dólares efectuados por el cliente
+150,Visa_fechaalta,dias,"Dias desde el alta de la cuenta de la tarjeta de crédito, contados a la fecha de la foto."
+151,Visa_mconsumototal,pesos,"Monto total expresado en pesos,  de todos los consumos ( pesos y dolares )  efectuados por el cliente durante ese mes."
+152,Visa_cconsumos,--,Cantidad de consumos con la tarjeta de credito efectuados por el cliente durante el mes.
+153,Visa_cadelantosefectivo,--,Cantidad de adelantos en efectivo que el cliente realizó durante ese mes.
+154,Visa_mpagominimo,pesos,Monto del pago minimo necesario para no ser moroso de la tarjeta de crédito
+155,clase_ternaria,,"Campo NO EXISTENTE, lo deberá crear usted                              { BAJA+1, BAJA+2, CONTINUA } , este campo se construyó mirando los siguientes dos meses, el FUTURO, indica si el cliente se da de baja durante el próximo mes, el mes +2 o si continua siendo cliente de Paquete Premium luego de dos meses.  El el único campo que se construye mirando el futuro."
