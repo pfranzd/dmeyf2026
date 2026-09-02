@@ -26,3 +26,4 @@ notebooks/         → MÍO · EDA (emparejado con .py vía jupytext)
 datasets/          → datos locales (en .gitignore, NO se suben)
 work/              → salidas, modelos, submits (en .gitignore, NO se suben)
 notas/             → apuntes markdown
+docs/              → documento con el libro de cátedra

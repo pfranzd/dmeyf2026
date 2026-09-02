@@ -208,6 +208,7 @@ datasets/raw/*
 !datasets/raw/diccionario_datos.csv
 !datasets/raw/consideraciones.txt
 work/
+output/
 *.parquet
 *.feather
 *.gz
