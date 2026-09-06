@@ -209,6 +209,7 @@ datasets/raw/*
 !datasets/raw/consideraciones.txt
 work/
 output/
+docs/
 *.parquet
 *.feather
 *.gz
