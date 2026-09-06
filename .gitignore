@@ -217,8 +217,14 @@ output/
 *.pkl
 *.joblib
 *.model
+*.sav
+modelos/
 mlruns/
 mlartifacts/
+
+# --- Bases locales (Optuna, etc.) ---
+db/
+*.db
 
 # --- Credenciales y secretos — NUNCA (el repo es PÚBLICO) ---
 .env
