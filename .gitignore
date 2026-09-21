@@ -1,7 +1,10 @@
 #Archivos que considero datasets grandes, lastima que git no lo permita nativamente
 *.csv
 *.csv.gz
-
+*.parquet.gzip
+*.parquet
+*.gzip
+*.db
 
 # Windows image file caches
 Thumbs.db
@@ -167,6 +170,7 @@ Session.vim
 
 # Python
 *.pyc
+.venv/
 
 # Scala - sbt specific
 .cache
@@ -182,65 +186,5 @@ project/target
 .worksheet
 
 .vscode/settings.json
+uv.lock
 
-
-# ==========================================================
-# AGREGADOS PROPIOS (Pedro) — no vienen de la cátedra
-# Mantener este bloque al final para minimizar conflictos
-# cuando se sincroniza el upstream con -Xtheirs.
-# ==========================================================
-
-# --- Entorno de Python ---
-.venv/
-venv/
-env/
-.python-version
-.ipynb_checkpoints/
-
-# --- Datasets y salidas pesadas (mi estructura de carpetas) ---
-# datasets/* (no datasets/) para poder reincluir archivos puntuales: git no
-# evalúa negaciones dentro de un directorio ya excluido por completo.
-datasets/*
-!datasets/NOTAS.md
-!datasets/raw/
-datasets/raw/*
-!datasets/raw/DiccionarioDatos_2026.ods
-!datasets/raw/diccionario_datos.csv
-!datasets/raw/consideraciones.txt
-work/
-output/
-docs/
-*.parquet
-*.feather
-*.gz
-
-# --- Modelos entrenados y artefactos de MLflow ---
-*.pkl
-*.joblib
-*.model
-*.sav
-modelos/
-mlruns/
-mlartifacts/
-
-# --- Bases locales (Optuna, etc.) ---
-db/
-*.db
-
-# --- Credenciales y secretos — NUNCA (el repo es PÚBLICO) ---
-.env
-.env.*
-*.pem
-*.key
-*credential*.json
-*service*account*.json
-*-key.json
-gcp-*.json
-*token*
-
-# --- Markdown propios que SÍ quiero versionar ---
-# La cátedra ignora todos los *.md (con !README.md como excepción).
-# Reincluyo los míos:
-!CLAUDE.md
-!SETUP_dmeyf2026.md
-!**/NOTAS.md
