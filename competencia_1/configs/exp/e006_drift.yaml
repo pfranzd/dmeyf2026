@@ -1,0 +1,38 @@
+# ¿Sirve conservar las columnas con drift (monday/z701)? Sobre la cache de e005 (que las
+# conserva), `sin_drift` equivale al conjunto completo de e004 y debe reproducir sus numeros
+# exactos (chequeo de determinismo). `con_canaritos` mide el costo de sumar 20 columnas de ruido.
+# Hiperparametros: los del trial estable de e003, optimizados con OTRAS features (cache distinta):
+# se usan a proposito (params_ignorar_fe_hash) para comparar con los mismos params que e004.
+hereda: ../base.yaml
+experimento: e006_drift
+
+fe:
+  drop_drift: []
+  canaritos: {activo: true, n: 20}
+
+final:
+  params_desde: archivo:work/competencia_1/params/e003_optuna_30197667_d5171f52__estable.json
+  params_ignorar_fe_hash: true
+
+ablacion:
+  n_semillas: 5
+  referencia: sin_drift
+  variantes:
+    sin_drift:
+      solo_bloques: null
+      excluir_bloques: [8_canaritos]
+      excluir_features: [Master_Finiciomora, Visa_Finiciomora, Master_fultimo_cierre, Visa_fultimo_cierre, tc_finiciomora_menor, tc_fultimo_cierre_menor]
+    con_drift:
+      solo_bloques: null
+      excluir_bloques: [8_canaritos]
+      excluir_features: []
+    con_canaritos:
+      solo_bloques: null
+      excluir_bloques: []
+      excluir_features: [Master_Finiciomora, Visa_Finiciomora, Master_fultimo_cierre, Visa_fultimo_cierre, tc_finiciomora_menor, tc_fultimo_cierre_menor]
+
+etapas:
+  ablacion: true
+  validacion: false
+  final: false
+  salida: false

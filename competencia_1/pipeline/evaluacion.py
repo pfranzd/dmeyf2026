@@ -12,7 +12,7 @@ import polars as pl
 
 from competencia_1.pipeline import config as cfgmod
 from competencia_1.pipeline.dataset import cargar_particion
-from competencia_1.pipeline.features import columnas_modelo, construir_features
+from competencia_1.pipeline.features import columnas_seleccionadas, construir_features
 from competencia_1.pipeline.metricas import curva_submuestreada, resumir_scores
 from competencia_1.pipeline.modelo import (
     entrenar_lgbm,
@@ -60,7 +60,7 @@ def evaluar_fold(
 
 def etapa_validacion(cfg: cfgmod.Config, run: Run) -> None:
     parquet, fe_hash = construir_features(cfg)
-    features = columnas_modelo(parquet)
+    features = columnas_seleccionadas(cfg, parquet)
     params = resolver_params(cfg, fe_hash)
     log.info("validando %d features con params %s", len(features), params)
 

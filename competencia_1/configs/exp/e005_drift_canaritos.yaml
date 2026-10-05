@@ -1,0 +1,17 @@
+# Cache de FE para dos experimentos de la etapa 9:
+#  - con/sin drop_drift: conserva las 4 columnas con drift de monday/z701 (y las 2 derivadas
+#    de fechas que salen de ellas) para compararlas contra la version sin drift;
+#  - canaritos: 20 columnas aleatorias (arboles/z0607) para detectar features peores que el azar.
+# Las variantes se arman luego por seleccion de columnas (excluir_bloques / excluir_features).
+hereda: ../base.yaml
+experimento: e005_drift_canaritos
+
+fe:
+  drop_drift: []
+  canaritos: {activo: true, n: 20}
+
+etapas:
+  features: true
+  validacion: false
+  final: false
+  salida: false

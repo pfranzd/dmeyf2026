@@ -15,7 +15,10 @@ from pathlib import Path
 import yaml
 
 from competencia_1.pipeline import config as cfgmod
+from competencia_1.pipeline.ablacion import etapa_ablacion
+from competencia_1.pipeline.canaritos import etapa_canaritos
 from competencia_1.pipeline.datos import etapa_datos
+from competencia_1.pipeline.estabilidad import etapa_estabilidad
 from competencia_1.pipeline.evaluacion import etapa_validacion
 from competencia_1.pipeline.features import etapa_features
 from competencia_1.pipeline.final import etapa_final
@@ -36,8 +39,10 @@ ORDEN_ETAPAS = [
     "datos",
     "features",
     "optuna",
-    "validacion",
     "estabilidad",
+    "ablacion",
+    "canaritos",
+    "validacion",
     "final",
     "salida",
 ]
@@ -56,6 +61,9 @@ ETAPAS = {
 ETAPAS["datos"] = etapa_datos
 ETAPAS["features"] = etapa_features
 ETAPAS["optuna"] = etapa_optuna
+ETAPAS["estabilidad"] = etapa_estabilidad
+ETAPAS["ablacion"] = etapa_ablacion
+ETAPAS["canaritos"] = etapa_canaritos
 ETAPAS["validacion"] = etapa_validacion
 ETAPAS["final"] = etapa_final
 ETAPAS["salida"] = etapa_salida

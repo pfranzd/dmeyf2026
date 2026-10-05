@@ -47,6 +47,10 @@ fe:
 
 dataset:
   undersampling: 0.1               # sobre CONTINUA; BAJA+1/BAJA+2 se conservan todas
+  excluir_bloques: []              # bloques del catalogo a no usar: 3_lags, 4_deltas, 5_ventanas,
+                                   # 6_tendencia, 2_rank_intrames, 1a..1e_*, 7_historia, 8_canaritos,
+                                   # + seudo-bloques `originales` y `derivadas`
+  excluir_features: []             # columnas puntuales a no usar (p. ej. salida de canaritos)
 
 lgbm:
   fijos:
@@ -76,16 +80,25 @@ optuna:
     feature_fraction: {tipo: float, low: 0.1, high: 1.0, log: false}
     num_iterations: {tipo: int, low: 50, high: 2048, log: false}
 
-estabilidad:
+estabilidad:                       # top-k trials x N semillas (z601/z301)
   top_k: 5
   n_semillas: 10
+  criterio: mediana                # mediana | media_menos_desvio (nunca el maximo)
+  n_simulaciones: 100              # simulaciones public/private 30/70
+
+ablacion:                          # compara conjuntos de features (pareado por semilla)
+  n_semillas: 5
+  referencia: completo             # variante contra la que se miden las diferencias
+  variantes:                       # nombre: {solo_bloques, excluir_bloques, excluir_features}
+    completo: {solo_bloques: null, excluir_bloques: [], excluir_features: []}
 
 final:
-  params_desde: manual             # manual | optuna:<study> | archivo:<path>
+  params_desde: manual             # manual | optuna:<study|auto> | estable:<study|auto> | archivo:<path>
   n_semillas: 1                    # 1..20
   semillas: null                   # lista explícita (anula n_semillas)
   promedio: true
   reescalar_min_data: true
+  params_ignorar_fe_hash: false    # true: usar params optimizados con OTRAS features (solo experimentos)
 
 salida:
   envios: auto                     # auto | N | [N1, N2, ...]
@@ -95,7 +108,9 @@ etapas:                            # se ejecutan en este orden
   datos: true
   features: true
   optuna: false                    # busca hiperparametros (db/competencia_1.db, reanudable)
+  estabilidad: false               # elige entre los top-k trials por mediana sobre N semillas
+  ablacion: false                  # compara variantes de features (ablacion.variantes)
+  canaritos: false                 # importancia vs columnas aleatorias (requiere fe.canaritos)
   validacion: true                 # evalua los params finales en los folds temporales
-  estabilidad: false
   final: true
   salida: true

@@ -23,7 +23,7 @@ import polars as pl
 
 from competencia_1.pipeline import config as cfgmod
 from competencia_1.pipeline.dataset import cargar_particion
-from competencia_1.pipeline.features import columnas_modelo, construir_features
+from competencia_1.pipeline.features import columnas_seleccionadas, construir_features
 from competencia_1.pipeline.metricas import resumir_scores
 from competencia_1.pipeline.modelo import (
     PARAMS_DIR,
@@ -54,10 +54,19 @@ class FoldPreparado:
 
 
 def preparar_folds(
-    cfg: cfgmod.Config, parquet: Path, features: list[str], seed: int
+    cfg: cfgmod.Config,
+    parquet: Path,
+    features: list[str],
+    seed: int,
+    reusar_valid: list[FoldPreparado] | None = None,
 ) -> list[FoldPreparado]:
+    """Carga cada fold (train con undersampling de semilla `seed`, valid completo).
+
+    `reusar_valid`: folds ya preparados con otra semilla; el mes de validación no
+    depende de la semilla, así que se copia en vez de volver a leerlo del parquet.
+    """
     out = []
-    for fold in cfgmod.folds(cfg):
+    for i, fold in enumerate(cfgmod.folds(cfg)):
         train = cargar_particion(
             parquet,
             features,
@@ -66,21 +75,28 @@ def preparar_folds(
             undersampling=cfg.dataset.undersampling,
             seed=seed,
         )
-        valid = cargar_particion(parquet, features, [fold.valid], cfg.target.positivos)
+        if reusar_valid is not None:
+            X_valid, es_baja2 = reusar_valid[i].X_valid, reusar_valid[i].es_baja2_valid
+        else:
+            valid = cargar_particion(
+                parquet, features, [fold.valid], cfg.target.positivos
+            )
+            X_valid, es_baja2 = valid.X, valid.es_baja2
         dtrain = crear_dataset(train.X, train.y, features, cfg.lgbm.fijos)
         dtrain.construct()
         out.append(
             FoldPreparado(
-                fold, dtrain, len(train), int(train.y.sum()), valid.X, valid.es_baja2
+                fold, dtrain, len(train), int(train.y.sum()), X_valid, es_baja2
             )
         )
         log.info(
-            "fold preparado: train=%s (n=%d, pos=%d) valid=%s (n=%d)",
+            "fold preparado (seed %d): train=%s (n=%d, pos=%d) valid=%s (n=%d)",
+            seed,
             fold.train,
             len(train),
             int(train.y.sum()),
             fold.valid,
-            len(valid),
+            len(es_baja2),
         )
     return out
 
@@ -111,22 +127,34 @@ def valor_objetivo(resultados: list[dict]) -> float:
     return float(np.mean([r["ganancia_meseta"] * n_ref / r["n"] for r in resultados]))
 
 
-def evaluar_trial(
+def puntuar_folds(
     cfg: cfgmod.Config, preps: list[FoldPreparado], params: dict, seed: int
-) -> list[dict]:
+) -> list[np.ndarray]:
+    """Entrena con `params` y `seed` y devuelve el score del mes de validación de cada fold."""
     p, n_iter = params_lgbm(cfg, params, seed)
+    return [
+        predecir(entrenar_dataset(prep.dtrain, p, n_iter), prep.X_valid)
+        for prep in preps
+    ]
+
+
+def resumir_folds(
+    cfg: cfgmod.Config, preps: list[FoldPreparado], scores: list[np.ndarray]
+) -> list[dict]:
+    """Ganancia meseta y envíos óptimos por fold a partir de los scores."""
     resultados = []
-    for prep in preps:
-        modelo = entrenar_dataset(prep.dtrain, p, n_iter)
-        r = resumir_scores(
-            prep.es_baja2_valid,
-            predecir(modelo, prep.X_valid),
-            cfg.optuna.ventana_meseta,
-        )
+    for prep, score in zip(preps, scores, strict=True):
+        r = resumir_scores(prep.es_baja2_valid, score, cfg.optuna.ventana_meseta)
         r.pop("curva")
         r["valid"] = prep.fold.valid
         resultados.append(r)
     return resultados
+
+
+def evaluar_trial(
+    cfg: cfgmod.Config, preps: list[FoldPreparado], params: dict, seed: int
+) -> list[dict]:
+    return resumir_folds(cfg, preps, puntuar_folds(cfg, preps, params, seed))
 
 
 def abrir_estudio(
@@ -252,7 +280,7 @@ def etapa_optuna(cfg: cfgmod.Config, run: Run) -> None:
         optuna.logging.WARNING
     )  # los trials los loguea `reportar`
     parquet, fe_hash = construir_features(cfg)
-    features = columnas_modelo(parquet)
+    features = columnas_seleccionadas(cfg, parquet)
     nombre = nombre_estudio(cfg, fe_hash)
     study, hechos = abrir_estudio(cfg, nombre, DB_PATH)
     log.info("estudio %s (%d features)", nombre, len(features))

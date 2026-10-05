@@ -97,11 +97,19 @@ def nombre_estudio(cfg: cfgmod.Config, fe_hash: str) -> str:
         "ventana": cfg.optuna.ventana_meseta,
         "semilla": cfg.semilla_maestra,
     }
+    d = cfg.dataset
+    if (
+        d.excluir_bloques or d.excluir_features
+    ):  # solo si hay selección: no cambia estudios previos
+        huella["seleccion"] = {
+            "bloques": sorted(d.excluir_bloques),
+            "features": sorted(d.excluir_features),
+        }
     return f"{cfg.experimento}_{fe_hash[:8]}_{cfgmod.hash_dict(huella, 8)}"
 
 
 def resolver_params(cfg: cfgmod.Config, fe_hash: str) -> dict:
-    """Hiperparámetros según `final.params_desde` (manual | optuna:<study|auto> | archivo:<path>).
+    """Hiperparámetros según `final.params_desde` (manual | optuna:<study|auto> | estable:<study|auto> | archivo:<path>).
 
     Los json de Optuna guardan el `fe_hash` con el que se optimizaron: usarlos con
     otras features es un error, no un warning.
@@ -110,17 +118,21 @@ def resolver_params(cfg: cfgmod.Config, fe_hash: str) -> dict:
     if origen == "manual":
         return dict(cfg.lgbm.manual)
     tipo, _, ref = origen.partition(":")
-    if tipo == "optuna":
+    if tipo in ("optuna", "estable"):
         nombre = nombre_estudio(cfg, fe_hash) if ref == "auto" else ref
-        path = PARAMS_DIR / f"{nombre}.json"
+        sufijo = "__estable" if tipo == "estable" else ""
+        path = PARAMS_DIR / f"{nombre}{sufijo}.json"
     else:
         path = Path(ref) if Path(ref).is_absolute() else cfgmod.RAIZ / ref
     if not path.exists():
         raise FileNotFoundError(f"no existe el archivo de hiperparámetros: {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("fe_hash") != fe_hash:
-        raise ValueError(
+        msg = (
             f"{path.name}: optimizado con fe_hash={data.get('fe_hash')} pero el actual es "
             f"{fe_hash}; esos hiperparámetros no corresponden a estas features"
         )
+        if not cfg.final.params_ignorar_fe_hash:
+            raise ValueError(msg)
+        log.warning("%s (se usan igual por final.params_ignorar_fe_hash)", msg)
     return dict(data["params"])

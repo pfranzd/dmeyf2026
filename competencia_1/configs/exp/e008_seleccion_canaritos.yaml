@@ -1,0 +1,33 @@
+# ¿Sirve seleccionar features por importancia (ganancia) calculada contra canaritos (e007)?
+# El umbral "mejor canarito" deja 20 de 663 features (ver e007: la ganancia favorece a las columnas
+# continuas), asi que se evalua directamente: top-K por ganancia media vs el conjunto completo sin
+# drift. Las importancias salen solo de las particiones de entrenamiento (sin etiquetas de valid).
+# Mismos hiperparametros y semillas que e004/e006.
+hereda: ../base.yaml
+experimento: e008_seleccion_canaritos
+
+fe:
+  drop_drift: []
+  canaritos: {activo: true, n: 20}
+
+final:
+  params_desde: archivo:work/competencia_1/params/e003_optuna_30197667_d5171f52__estable.json
+  params_ignorar_fe_hash: true
+
+ablacion:
+  n_semillas: 5
+  referencia: sin_drift
+  variantes:
+    completo: null                 # quita la variante heredada de base.yaml
+    sin_drift: {solo_bloques: null, excluir_bloques: [8_canaritos], excluir_features: [Master_Finiciomora, Visa_Finiciomora, Master_fultimo_cierre, Visa_fultimo_cierre, tc_finiciomora_menor, tc_fultimo_cierre_menor]}
+    top25_por_ganancia: {solo_bloques: null, excluir_bloques: [8_canaritos], excluir_features: [Master_Finiciomora, Visa_Finiciomora, Master_fultimo_cierre, Visa_fultimo_cierre, tc_finiciomora_menor, tc_fultimo_cierre_menor, 'archivo:work/competencia_1/runs/20261004-223642_e007_canaritos/excluir_fuera_top25.txt']}
+    top50_por_ganancia: {solo_bloques: null, excluir_bloques: [8_canaritos], excluir_features: [Master_Finiciomora, Visa_Finiciomora, Master_fultimo_cierre, Visa_fultimo_cierre, tc_finiciomora_menor, tc_fultimo_cierre_menor, 'archivo:work/competencia_1/runs/20261004-223642_e007_canaritos/excluir_fuera_top50.txt']}
+    top100_por_ganancia: {solo_bloques: null, excluir_bloques: [8_canaritos], excluir_features: [Master_Finiciomora, Visa_Finiciomora, Master_fultimo_cierre, Visa_fultimo_cierre, tc_finiciomora_menor, tc_fultimo_cierre_menor, 'archivo:work/competencia_1/runs/20261004-223642_e007_canaritos/excluir_fuera_top100.txt']}
+    top200_por_ganancia: {solo_bloques: null, excluir_bloques: [8_canaritos], excluir_features: [Master_Finiciomora, Visa_Finiciomora, Master_fultimo_cierre, Visa_fultimo_cierre, tc_finiciomora_menor, tc_fultimo_cierre_menor, 'archivo:work/competencia_1/runs/20261004-223642_e007_canaritos/excluir_fuera_top200.txt']}
+    top350_por_ganancia: {solo_bloques: null, excluir_bloques: [8_canaritos], excluir_features: [Master_Finiciomora, Visa_Finiciomora, Master_fultimo_cierre, Visa_fultimo_cierre, tc_finiciomora_menor, tc_fultimo_cierre_menor, 'archivo:work/competencia_1/runs/20261004-223642_e007_canaritos/excluir_fuera_top350.txt']}
+
+etapas:
+  ablacion: true
+  validacion: false
+  final: false
+  salida: false

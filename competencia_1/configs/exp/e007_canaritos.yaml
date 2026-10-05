@@ -1,0 +1,22 @@
+# Importancia contra 20 canaritos (columnas aleatorias) sobre el conjunto sin drift:
+# marca las features que no superan al mejor canarito (features_ruidosas.txt).
+# Mismos hiperparametros y semillas (ablacion.n_semillas) que e006.
+hereda: ../base.yaml
+experimento: e007_canaritos
+
+fe:
+  drop_drift: []
+  canaritos: {activo: true, n: 20}
+
+dataset:
+  excluir_features: [Master_Finiciomora, Visa_Finiciomora, Master_fultimo_cierre, Visa_fultimo_cierre, tc_finiciomora_menor, tc_fultimo_cierre_menor]
+
+final:
+  params_desde: archivo:work/competencia_1/params/e003_optuna_30197667_d5171f52__estable.json
+  params_ignorar_fe_hash: true
+
+etapas:
+  canaritos: true
+  validacion: false
+  final: false
+  salida: false
