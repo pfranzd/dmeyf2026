@@ -1,0 +1,26 @@
+# Baseline de cátedra (ensembles/z470_GBDT_LightGBM, commit 9eda69b): LightGBM con los
+# hiperparámetros de 4.07, target BAJA+2, sin undersampling y solo variables originales.
+# Diferencias deliberadas con z470: no usa numero_de_cliente/foto_mes como features,
+# quita las 4 columnas con drift (monday/z701) y corta por cantidad de envíos.
+hereda: ../base.yaml
+experimento: e001_baseline_catedra
+
+target:
+  positivos: [BAJA+2]
+
+dataset:
+  undersampling: 1.0
+
+fe:
+  intrafila: {tc_consolidado: false, tc_fechas: false, ratios: false, agregados: false, flags: false}
+  lags: {activo: false, n: [1, 2]}
+  deltas: {activo: false, n: [1, 2], pct: true}
+  ventanas: {activo: false, tamanio: 3, stats: [avg, max, min, std], ratio_avg: true}
+  tendencia: {activo: false, tamanio: 3}
+  historia: false
+  rankings: {activo: false, campos: curado, ntile10: [ctrx_quarter, mcaja_ahorro, mpasivos_margen, mcuentas_saldo]}
+
+etapas:
+  validacion: true
+  final: true
+  salida: true

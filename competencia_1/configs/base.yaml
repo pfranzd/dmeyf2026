@@ -1,0 +1,101 @@
+# Única fuente de defaults. Los experimentos (configs/exp/*.yaml) heredan con
+# `hereda: ../base.yaml` y solo declaran lo que cambian. Overrides ad hoc:
+#   python -m competencia_1.main --config <exp>.yaml --set final.n_semillas=20
+experimento: base
+semilla_maestra: 111623            # = config.semillas.SEMILLA_PRIMARIA
+
+periodos:
+  target: 202108                   # período a predecir (sin target conocido)
+  gap: 2                           # meses entre fin de train y valid/target
+  n_meses_train: 1
+  n_folds: 2                       # valid = T-gap, T-gap-1, ...
+  meses_final: null                # override explícito; null = derivado
+
+target:
+  positivos: [BAJA+1, BAJA+2]      # clases con y=1 al entrenar (ganancia: solo BAJA+2)
+
+datos:
+  csv_procesado: datasets/processed/competencia_01.csv
+  csv_crudo: datasets/raw/competencia_01_crudo.csv
+  reconstruir_target: false        # true: rehace clase_ternaria desde el crudo
+
+fe:
+  originales: true
+  drop_drift:                      # PSI alto en monday/z701
+    - Master_fultimo_cierre
+    - Visa_fultimo_cierre
+    - Master_Finiciomora
+    - Visa_Finiciomora
+  drop_extra: []
+  intrafila:
+    tc_consolidado: true
+    tc_fechas: true
+    ratios: true
+    agregados: true
+    flags: true
+  campos_serie: curado             # curado | todos | [lista]
+  lags: {activo: true, n: [1, 2]}
+  deltas: {activo: true, n: [1, 2], pct: true}
+  ventanas: {activo: true, tamanio: 3, stats: [avg, max, min, std], ratio_avg: true}
+  tendencia: {activo: true, tamanio: 3}
+  historia: true
+  rankings:
+    activo: true
+    campos: curado
+    ntile10: [ctrx_quarter, mcaja_ahorro, mpasivos_margen, mcuentas_saldo]
+  canaritos: {activo: false, n: 0}
+
+dataset:
+  undersampling: 0.1               # sobre CONTINUA; BAJA+1/BAJA+2 se conservan todas
+
+lgbm:
+  fijos:
+    objective: binary
+    max_bin: 31
+    boost_from_average: true
+    feature_pre_filter: false
+    force_row_wise: true
+    deterministic: true
+    num_threads: 8
+    verbosity: -1
+  manual:                          # baseline z470 ("surgieron de una Bayesian Optimization")
+    learning_rate: 0.027
+    num_iterations: 1000
+    feature_fraction: 0.8
+    num_leaves: 8
+    min_data_in_leaf: 76
+
+optuna:
+  n_trials: 50
+  study_name: auto
+  ventana_meseta: 401
+  espacio:
+    learning_rate: {tipo: float, low: 0.005, high: 0.3, log: true}
+    num_leaves: {tipo: int, low: 8, high: 2048, log: true}
+    min_data_in_leaf: {tipo: int, low: 1, high: 8000, log: true}
+    feature_fraction: {tipo: float, low: 0.1, high: 1.0, log: false}
+    num_iterations: {tipo: int, low: 50, high: 2048, log: false}
+
+estabilidad:
+  top_k: 5
+  n_semillas: 10
+
+final:
+  params_desde: manual             # manual | optuna:<study> | archivo:<path>
+  n_semillas: 1                    # 1..20
+  semillas: null                   # lista explícita (anula n_semillas)
+  promedio: true
+  reescalar_min_data: true
+
+salida:
+  envios: auto                     # auto | N | [N1, N2, ...]
+  formato: solo_ids
+
+etapas:
+  datos: true
+  features: true
+  validacion: true                 # evalua los params en los folds temporales
+  optuna: false
+  estabilidad: false
+  final: true
+  salida: true
