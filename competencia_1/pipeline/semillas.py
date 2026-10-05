@@ -20,6 +20,14 @@ def _es_primo(n: int) -> bool:
     return True
 
 
+def validar_semilla_curso(semilla: int, etiqueta: str = "semilla") -> None:
+    """La cátedra exige primos entre 100003 y 999983."""
+    if not isinstance(semilla, int) or isinstance(semilla, bool):
+        raise TypeError(f"{etiqueta}: debe ser un entero, es {semilla!r}")
+    if not _MIN <= semilla <= _MAX or not _es_primo(semilla):
+        raise ValueError(f"{etiqueta}={semilla}: debe ser primo entre {_MIN} y {_MAX}")
+
+
 def generar_semillas(maestra: int, n: int) -> list[int]:
     """Devuelve `n` primos distintos; los primeros son las SEMILLAS del curso.
 

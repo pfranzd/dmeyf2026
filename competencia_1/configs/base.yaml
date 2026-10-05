@@ -91,11 +91,11 @@ salida:
   envios: auto                     # auto | N | [N1, N2, ...]
   formato: solo_ids
 
-etapas:
+etapas:                            # se ejecutan en este orden
   datos: true
   features: true
-  validacion: true                 # evalua los params en los folds temporales
-  optuna: false
+  optuna: false                    # busca hiperparametros (db/competencia_1.db, reanudable)
+  validacion: true                 # evalua los params finales en los folds temporales
   estabilidad: false
   final: true
   salida: true

@@ -1,0 +1,20 @@
+# Optuna sobre el FE completo de base.yaml (se reusa la cache de features de e002).
+# Metodologia z494: target BAJA+1+BAJA+2, undersampling 0.1 de CONTINUA, hiperparametros
+# buscados con validacion temporal (folds con gap 2) y ganancia meseta como objetivo.
+# El modelo final reutiliza el mejor trial (optuna:auto) con min_data_in_leaf reescalado.
+# Reanudable: relanzar con un n_trials mayor completa solo los que faltan.
+hereda: ../base.yaml
+experimento: e003_optuna
+
+optuna:
+  n_trials: 50
+
+final:
+  params_desde: optuna:auto
+  n_semillas: 1
+
+etapas:
+  optuna: true
+  validacion: true
+  final: true
+  salida: true
