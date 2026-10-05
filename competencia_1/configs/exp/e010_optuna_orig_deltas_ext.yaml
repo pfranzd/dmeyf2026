@@ -1,0 +1,32 @@
+# Segunda ronda de Optuna sobre originales + deltas con el espacio corrido: en e009 los mejores
+# trials quedaron pegados al piso de learning_rate (0.005) y de feature_fraction (0.10) y los
+# mejores eran los ultimos (el estudio seguia mejorando). Se baja el piso de ambos, se sube el
+# maximo de iteraciones y se acotan los techos de hojas / min_data donde ya no hay candidatos.
+hereda: ../base.yaml
+experimento: e010_optuna_orig_deltas_ext
+
+dataset:
+  excluir_bloques: [1a_tc_consolidado, 1b_tc_fechas, 1c_ratios_dominio, 1d_agregados, 1e_flags_riesgo, 2_rank_intrames, 3_lags, 5_ventanas, 6_tendencia, 7_historia]
+
+optuna:
+  n_trials: 80
+  espacio:
+    learning_rate: {tipo: float, low: 0.001, high: 0.05, log: true}
+    feature_fraction: {tipo: float, low: 0.02, high: 0.5, log: true}
+    num_leaves: {tipo: int, low: 8, high: 256, log: true}
+    min_data_in_leaf: {tipo: int, low: 1, high: 2000, log: true}
+    num_iterations: {tipo: int, low: 200, high: 4096, log: false}
+
+estabilidad:
+  top_k: 5
+  n_semillas: 5
+
+final:
+  params_desde: estable:auto
+
+etapas:
+  optuna: true
+  estabilidad: true
+  validacion: false
+  final: false
+  salida: false

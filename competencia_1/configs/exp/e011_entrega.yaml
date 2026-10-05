@@ -1,0 +1,25 @@
+# ENTREGA Primera Competencia (target 202108): originales + deltas, hiperparametros estables
+# de e010 (trial 53 por mediana de 5 semillas), semillerio de 20 modelos con promedio de
+# probabilidades, entrenado sobre 202106 sin undersampling (min_data_in_leaf reescalado x10).
+# Se generan 3 cortes de envios alrededor del optimo de validacion (13.8k en 202106 y 8.1k en 202105).
+# Reproducir: python -m competencia_1.main --config competencia_1/configs/exp/e011_entrega.yaml
+hereda: ../base.yaml
+experimento: e011_entrega
+
+dataset:
+  excluir_bloques: [1a_tc_consolidado, 1b_tc_fechas, 1c_ratios_dominio, 1d_agregados, 1e_flags_riesgo, 2_rank_intrames, 3_lags, 5_ventanas, 6_tendencia, 7_historia]
+
+final:
+  params_desde: estable:e010_optuna_orig_deltas_ext_30197667_5b46e672
+  n_semillas: 20
+  promedio: true
+
+salida:
+  envios: [10000, 11000, 12000]
+
+etapas:
+  optuna: false
+  estabilidad: false
+  validacion: true
+  final: true
+  salida: true

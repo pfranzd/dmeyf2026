@@ -1,0 +1,26 @@
+# Optuna sobre originales + deltas (292 features): en e004 casi iguala al conjunto completo
+# (323.3M vs 324.2M) con menos de la mitad de las columnas. Los hiperparametros de e003 se
+# tunearon con el completo, lo que favorecia a ese conjunto; aca se re-tunea para compararlos
+# en igualdad de condiciones. Misma cache de FE que e002/e003 (fe_hash 30197667f3db).
+hereda: ../base.yaml
+experimento: e009_optuna_orig_deltas
+
+dataset:
+  excluir_bloques: [1a_tc_consolidado, 1b_tc_fechas, 1c_ratios_dominio, 1d_agregados, 1e_flags_riesgo, 2_rank_intrames, 3_lags, 5_ventanas, 6_tendencia, 7_historia]
+
+optuna:
+  n_trials: 50
+
+estabilidad:
+  top_k: 5
+  n_semillas: 5
+
+final:
+  params_desde: estable:auto
+
+etapas:
+  optuna: true
+  estabilidad: true
+  validacion: false
+  final: false
+  salida: false
