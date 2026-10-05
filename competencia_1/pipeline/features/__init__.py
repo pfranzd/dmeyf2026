@@ -20,7 +20,7 @@ from competencia_1.pipeline import config as cfgmod
 from competencia_1.pipeline.datos import CACHE_BASE
 from competencia_1.pipeline.features.macros import crear_macros
 from competencia_1.pipeline.features.query import CLAVES, armar_query
-from competencia_1.pipeline.tracking import WORK, Run
+from competencia_1.pipeline.tracking import WORK, Run, ruta_relativa
 
 log = logging.getLogger("competencia_1.fe")
 
@@ -156,7 +156,7 @@ def etapa_features(cfg: cfgmod.Config, run: Run) -> None:
     run.registrar(
         fe_hash=h,
         features={
-            "parquet": parquet.relative_to(cfgmod.RAIZ).as_posix(),
+            "parquet": ruta_relativa(parquet),
             "n_features": len(cols),
         },
     )

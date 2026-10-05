@@ -7,6 +7,7 @@ Garantías del formato:
 - Si alguna validación falla, el archivo se borra y se lanza la excepción.
 """
 
+import itertools
 import logging
 import re
 import statistics
@@ -151,6 +152,37 @@ def generar_submits(
     return generados
 
 
+def _jaccard(a: set, b: set) -> float:
+    return len(a & b) / len(a | b)
+
+
+def resumen_semillerio(
+    probas_por_modelo: dict[str, pl.DataFrame], envios: list[int]
+) -> dict:
+    """Cuánto coinciden los clientes elegidos por los distintos modelos en cada corte.
+
+    Jaccard del top-N entre pares de semillas y de cada semilla contra el promedio:
+    cerca de 1 las semillas casi no aportan diversidad; bajo, el promedio sí estabiliza.
+    """
+    semillas = {k: v for k, v in probas_por_modelo.items() if k != "promedio"}
+    resumen = {}
+    for n in envios:
+        tops = {k: set(seleccionar_top(v, n).to_list()) for k, v in semillas.items()}
+        pares = [_jaccard(a, b) for a, b in itertools.combinations(tops.values(), 2)]
+        r = {
+            "n_modelos": len(semillas),
+            "jaccard_medio_pares": statistics.fmean(pares) if pares else None,
+            "jaccard_min_pares": min(pares) if pares else None,
+        }
+        if "promedio" in probas_por_modelo and tops:
+            top_prom = set(seleccionar_top(probas_por_modelo["promedio"], n).to_list())
+            r["jaccard_medio_vs_promedio"] = statistics.fmean(
+                _jaccard(t, top_prom) for t in tops.values()
+            )
+        resumen[str(n)] = r
+    return resumen
+
+
 def etapa_salida(cfg: cfgmod.Config, run: Run) -> None:
     """Lee run/probas/*.parquet (contrato de la etapa final) y escribe los CSV."""
     dir_probas = run.dir / "probas"
@@ -185,4 +217,18 @@ def etapa_salida(cfg: cfgmod.Config, run: Run) -> None:
     )
     for a in archivos_csv:
         run.registrar_archivo(a)
-    run.registrar(envios=envios)
+    semillerio = resumen_semillerio(nombres, envios)
+    for n, r in semillerio.items():
+        if r["jaccard_medio_pares"] is not None:
+            log.info(
+                "semillerío en %s envíos: Jaccard medio entre semillas=%.3f (mín %.3f)%s",
+                n,
+                r["jaccard_medio_pares"],
+                r["jaccard_min_pares"],
+                (
+                    f" | vs promedio={r['jaccard_medio_vs_promedio']:.3f}"
+                    if "jaccard_medio_vs_promedio" in r
+                    else ""
+                ),
+            )
+    run.registrar(envios=envios, semillerio=semillerio)

@@ -47,6 +47,16 @@ def sha256_archivo(path: Path) -> str:
     return h.hexdigest()
 
 
+def ruta_relativa(path: Path) -> str:
+    """Ruta relativa al repo (con /) si está adentro; si no, la ruta absoluta."""
+    path = Path(path)
+    return (
+        path.relative_to(RAIZ).as_posix()
+        if path.is_relative_to(RAIZ)
+        else path.as_posix()
+    )
+
+
 def _git(*args: str) -> str:
     try:
         r = subprocess.run(
@@ -136,9 +146,7 @@ class Run:
 
     def registrar_archivo(self, path: Path) -> None:
         path = Path(path)
-        self.meta["archivos"][
-            str(path.relative_to(RAIZ) if path.is_relative_to(RAIZ) else path)
-        ] = {
+        self.meta["archivos"][ruta_relativa(path)] = {
             "sha256": sha256_archivo(path),
             "bytes": path.stat().st_size,
         }
@@ -182,7 +190,7 @@ class Run:
             "semillas": json.dumps(m.get("semillas")),
             "ganancia_valid": m.get("ganancia_valid"),
             "envios": json.dumps(m.get("envios")),
-            "ruta": self.dir.relative_to(RAIZ).as_posix(),
+            "ruta": ruta_relativa(self.dir),
         }
         nuevo = not RUNS_CSV.exists()
         with open(RUNS_CSV, "a", newline="", encoding="utf-8") as f:

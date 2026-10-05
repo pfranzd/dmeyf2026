@@ -306,16 +306,35 @@ def validar(cfg: Config) -> None:
         raise ValueError("dataset.undersampling debe estar en (0, 1]")
     if not 1 <= cfg.final.n_semillas <= 20:
         raise ValueError("final.n_semillas debe estar entre 1 y 20")
-    if cfg.final.semillas is not None and not cfg.final.semillas:
-        raise ValueError("final.semillas no puede ser una lista vacía")
+    from competencia_1.pipeline.semillas import validar_semilla_curso
+
+    validar_semilla_curso(cfg.semilla_maestra, "semilla_maestra")
+    if cfg.final.semillas is not None:
+        if not cfg.final.semillas:
+            raise ValueError("final.semillas no puede ser una lista vacía")
+        if len(set(cfg.final.semillas)) != len(cfg.final.semillas):
+            raise ValueError("final.semillas tiene semillas repetidas")
+        if len(cfg.final.semillas) > 20:
+            raise ValueError("final.semillas admite como máximo 20 semillas")
+        for x in cfg.final.semillas:
+            validar_semilla_curso(x, "final.semillas")
     fp = cfg.final.params_desde
     if fp != "manual" and not fp.startswith(("optuna:", "archivo:")):
         raise ValueError(f"final.params_desde inválido: {fp}")
     if cfg.optuna.n_trials < 1:
         raise ValueError("optuna.n_trials debe ser >= 1")
     for nombre, esp in cfg.optuna.espacio.items():
+        if esp.get("tipo") not in ("int", "float"):
+            raise ValueError(f"optuna.espacio.{nombre}: tipo debe ser int o float")
         if esp["low"] >= esp["high"]:
             raise ValueError(f"optuna.espacio.{nombre}: low >= high")
+        if esp.get("log", False) and esp["low"] <= 0:
+            raise ValueError(f"optuna.espacio.{nombre}: log=true requiere low > 0")
+    if (
+        "num_iterations" not in cfg.optuna.espacio
+        and "num_iterations" not in cfg.lgbm.manual
+    ):
+        raise ValueError("num_iterations debe estar en optuna.espacio o en lgbm.manual")
     if cfg.salida.formato != "solo_ids":
         raise ValueError(f"salida.formato no soportado: {cfg.salida.formato}")
     e = cfg.salida.envios

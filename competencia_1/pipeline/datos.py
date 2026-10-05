@@ -15,7 +15,7 @@ import duckdb
 
 from competencia_1.pipeline import config as cfgmod
 from competencia_1.pipeline import periodos
-from competencia_1.pipeline.tracking import WORK, Run
+from competencia_1.pipeline.tracking import WORK, Run, ruta_relativa
 
 log = logging.getLogger("competencia_1.datos")
 
@@ -205,7 +205,7 @@ def etapa_datos(cfg: cfgmod.Config, run: Run) -> None:
     validar_periodos(cfg, resumen)
     run.registrar(
         datos={
-            "parquet": parquet.relative_to(cfgmod.RAIZ).as_posix(),
+            "parquet": ruta_relativa(parquet),
             "meses": resumen,
             "meses_target_completo": sorted(meses_con_target_completo(resumen)),
         }

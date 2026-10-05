@@ -19,6 +19,7 @@ from competencia_1.pipeline.datos import etapa_datos
 from competencia_1.pipeline.evaluacion import etapa_validacion
 from competencia_1.pipeline.features import etapa_features
 from competencia_1.pipeline.final import etapa_final
+from competencia_1.pipeline.optimizacion import etapa_optuna
 from competencia_1.pipeline.salida import etapa_salida
 from competencia_1.pipeline.tracking import Run
 
@@ -34,8 +35,8 @@ for _stream in (sys.stdout, sys.stderr):
 ORDEN_ETAPAS = [
     "datos",
     "features",
-    "validacion",
     "optuna",
+    "validacion",
     "estabilidad",
     "final",
     "salida",
@@ -43,7 +44,7 @@ ORDEN_ETAPAS = [
 
 
 def _etapa_pendiente(nombre: str, cfg: cfgmod.Config, run: Run) -> None:
-    # Las etapas se irán enchufando una a una (ver plan, secciones 2-5).
+    # Etapas todavía sin implementar (ver plan, sección 11).
     raise NotImplementedError(f"etapa '{nombre}' todavía no implementada")
 
 
@@ -54,6 +55,7 @@ ETAPAS = {
 }
 ETAPAS["datos"] = etapa_datos
 ETAPAS["features"] = etapa_features
+ETAPAS["optuna"] = etapa_optuna
 ETAPAS["validacion"] = etapa_validacion
 ETAPAS["final"] = etapa_final
 ETAPAS["salida"] = etapa_salida
