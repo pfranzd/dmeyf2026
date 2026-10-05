@@ -1,0 +1,16 @@
+# Igual que e001 (mismo target, undersampling, hiperparámetros z470 y semilla) pero con TODO
+# el feature engineering de base.yaml. Aísla el efecto del FE: la única diferencia con e001
+# es la sección `fe`.
+hereda: ../base.yaml
+experimento: e002_fe_completo
+
+target:
+  positivos: [BAJA+2]
+
+dataset:
+  undersampling: 1.0
+
+etapas:
+  validacion: true
+  final: true
+  salida: true
