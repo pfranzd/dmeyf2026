@@ -20,6 +20,11 @@ from competencia_1.pipeline import config as cfgmod
 from competencia_1.pipeline.datos import CACHE_BASE
 from competencia_1.pipeline.features.macros import crear_macros
 from competencia_1.pipeline.features.query import CLAVES, armar_query
+from competencia_1.pipeline.features.seleccion import (
+    cargar_bloques,
+    expandir_lista,
+    seleccionar_columnas,
+)
 from competencia_1.pipeline.tracking import WORK, Run, ruta_relativa
 
 log = logging.getLogger("competencia_1.fe")
@@ -56,6 +61,22 @@ def columnas_modelo(parquet: Path) -> list[str]:
     finally:
         con.close()
     return [c for c in cols if c not in CLAVES]
+
+
+def columnas_seleccionadas(cfg: cfgmod.Config, parquet: Path) -> list[str]:
+    """Features que usa el modelo: las candidatas menos `dataset.excluir_*`."""
+    cols = columnas_modelo(parquet)
+    d = cfg.dataset
+    if not d.excluir_bloques and not d.excluir_features:
+        return cols
+    out = seleccionar_columnas(
+        cols,
+        cargar_bloques(parquet, cols),
+        excluir_bloques=d.excluir_bloques,
+        excluir_features=expandir_lista(d.excluir_features, cfgmod.RAIZ),
+    )
+    log.info("selección de features: %d de %d columnas candidatas", len(out), len(cols))
+    return out
 
 
 def verificar_salida(base: Path, salida: Path, features_creadas: list[str]) -> None:

@@ -1,0 +1,37 @@
+# Ablacion de familias de features sobre la cache de FE completo (fe_hash de e002/e003).
+# No reconstruye el FE: cada variante elige columnas del parquet completo, lo que equivale
+# exactamente a apagar esa familia. Comparacion pareada (mismas semillas y misma muestra de
+# undersampling por semilla). Hiperparametros: los del trial estable de e003 (estable:auto),
+# optimizados con el conjunto completo, lo que favorece a la referencia ("completo").
+hereda: ../base.yaml
+experimento: e003_optuna        # mismo nombre que e003 para resolver el mismo estudio/params
+
+final:
+  params_desde: estable:auto
+
+ablacion:
+  n_semillas: 5
+  referencia: completo
+  variantes:
+    completo:          {solo_bloques: null, excluir_bloques: [], excluir_features: []}
+    # --- sustractivas: ¿cuanto se pierde al sacar una familia? ---
+    sin_lags:          {solo_bloques: null, excluir_bloques: [3_lags], excluir_features: []}
+    sin_deltas:        {solo_bloques: null, excluir_bloques: [4_deltas], excluir_features: []}
+    sin_ventanas:      {solo_bloques: null, excluir_bloques: [5_ventanas], excluir_features: []}
+    sin_tendencia:     {solo_bloques: null, excluir_bloques: [6_tendencia], excluir_features: []}
+    sin_rankings:      {solo_bloques: null, excluir_bloques: [2_rank_intrames], excluir_features: []}
+    sin_historia:      {solo_bloques: null, excluir_bloques: [7_historia], excluir_features: []}
+    sin_intrafila:     {solo_bloques: null, excluir_bloques: [1a_tc_consolidado, 1b_tc_fechas, 1c_ratios_dominio, 1d_agregados, 1e_flags_riesgo], excluir_features: []}
+    # --- aditivas: originales + una familia ---
+    solo_originales:   {solo_bloques: [originales], excluir_bloques: [], excluir_features: []}
+    orig_mas_lags:     {solo_bloques: [originales, 3_lags], excluir_bloques: [], excluir_features: []}
+    orig_mas_deltas:   {solo_bloques: [originales, 4_deltas], excluir_bloques: [], excluir_features: []}
+    orig_mas_ventanas: {solo_bloques: [originales, 5_ventanas], excluir_bloques: [], excluir_features: []}
+    orig_mas_rankings: {solo_bloques: [originales, 2_rank_intrames], excluir_bloques: [], excluir_features: []}
+    orig_mas_intrafila: {solo_bloques: [originales, 1a_tc_consolidado, 1b_tc_fechas, 1c_ratios_dominio, 1d_agregados, 1e_flags_riesgo], excluir_bloques: [], excluir_features: []}
+
+etapas:
+  ablacion: true
+  validacion: false
+  final: false
+  salida: false

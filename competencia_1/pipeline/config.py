@@ -109,6 +109,10 @@ class FE:
 @dataclass(frozen=True)
 class DatasetCfg:
     undersampling: float
+    excluir_bloques: list[
+        str
+    ]  # bloques del catálogo (+ originales/derivadas) a no usar
+    excluir_features: list[str]  # columnas puntuales a no usar
 
 
 @dataclass(frozen=True)
@@ -129,6 +133,24 @@ class OptunaCfg:
 class Estabilidad:
     top_k: int
     n_semillas: int
+    criterio: str  # mediana | media_menos_desvio
+    n_simulaciones: int  # simulaciones public/private 30/70
+
+
+@dataclass(frozen=True)
+class Variante:
+    solo_bloques: list[str] | None  # si se indica, solo estos bloques
+    excluir_bloques: list[str]
+    excluir_features: list[str]
+
+
+@dataclass(frozen=True)
+class Ablacion:
+    n_semillas: int
+    referencia: str  # variante contra la que se comparan las demás (pareado)
+    variantes: (
+        dict  # nombre -> Variante (se valida y convierte en `variantes_ablacion`)
+    )
 
 
 @dataclass(frozen=True)
@@ -138,6 +160,9 @@ class Final:
     semillas: list[int] | None
     promedio: bool
     reescalar_min_data: bool
+    params_ignorar_fe_hash: (
+        bool  # usar params optimizados con otras features (con warning)
+    )
 
 
 @dataclass(frozen=True)
@@ -153,6 +178,8 @@ class Etapas:
     validacion: bool
     optuna: bool
     estabilidad: bool
+    ablacion: bool
+    canaritos: bool
     final: bool
     salida: bool
 
@@ -169,6 +196,7 @@ class Config:
     lgbm: LGBM
     optuna: OptunaCfg
     estabilidad: Estabilidad
+    ablacion: Ablacion
     final: Final
     salida: Salida
     etapas: Etapas
@@ -284,6 +312,16 @@ def semillas_finales(cfg: Config) -> list[int]:
     return generar_semillas(cfg.semilla_maestra, cfg.final.n_semillas)
 
 
+def variantes_ablacion(cfg: Config) -> dict[str, Variante]:
+    """Variantes de la ablación como dataclasses validados (claves desconocidas = error)."""
+    # una variante en `null` quita la heredada de base.yaml (el deep-merge no puede borrar claves)
+    return {
+        nombre: _construir(Variante, spec, f"ablacion.variantes.{nombre}")
+        for nombre, spec in cfg.ablacion.variantes.items()
+        if spec is not None
+    }
+
+
 def validar(cfg: Config) -> None:
     p = cfg.periodos
     if p.gap < 2:
@@ -319,8 +357,23 @@ def validar(cfg: Config) -> None:
         for x in cfg.final.semillas:
             validar_semilla_curso(x, "final.semillas")
     fp = cfg.final.params_desde
-    if fp != "manual" and not fp.startswith(("optuna:", "archivo:")):
+    if fp != "manual" and not fp.startswith(("optuna:", "estable:", "archivo:")):
         raise ValueError(f"final.params_desde inválido: {fp}")
+    e = cfg.estabilidad
+    if e.top_k < 1 or not 1 <= e.n_semillas <= 20 or e.n_simulaciones < 1:
+        raise ValueError(
+            "estabilidad: top_k >= 1, n_semillas en 1..20 y n_simulaciones >= 1"
+        )
+    if e.criterio not in ("mediana", "media_menos_desvio"):
+        raise ValueError(f"estabilidad.criterio inválido: {e.criterio}")
+    a = cfg.ablacion
+    if not 1 <= a.n_semillas <= 20:
+        raise ValueError("ablacion.n_semillas debe estar entre 1 y 20")
+    variantes = variantes_ablacion(cfg)
+    if cfg.etapas.ablacion and a.referencia not in variantes:
+        raise ValueError(
+            f"ablacion.referencia '{a.referencia}' no está en ablacion.variantes"
+        )
     if cfg.optuna.n_trials < 1:
         raise ValueError("optuna.n_trials debe ser >= 1")
     for nombre, esp in cfg.optuna.espacio.items():
