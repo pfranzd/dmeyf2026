@@ -1,0 +1,11 @@
+# e022 (orig + deltas sobre todas las variables) con deltas SOLO de 1 mes (delta_1, deltapct_1):
+# 148 originales + 296 deltas = 444 features. Con 1 mes de retroceso, 202104 (train del fold
+# 202106) queda sin NULL en lo temporal; los delta_2 de 202104 necesitaban 202102 (inexistente).
+# Cambia la seccion fe -> fe_hash nuevo -> reconstruye features (~1-2 min).
+# Prueba rapida pareada: validar con los params estables de e022 (sin re-tunear) y comparar
+# contra la validacion de e022 con esos mismos params: 357.75 M (453.5 / 262.0).
+hereda: e022_fe_deltas_todos.yaml
+experimento: e026_fe_deltas1_todos
+
+fe:
+  deltas: {activo: true, n: [1], pct: true}

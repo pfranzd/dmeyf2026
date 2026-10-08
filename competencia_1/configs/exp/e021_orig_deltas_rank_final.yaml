@@ -1,0 +1,23 @@
+# Paso 2 de 2 de e020: modelo final al estilo e019 (el mejor en el publico): 3 meses
+# (202104-202106) y min_data_in_leaf x3 por la cantidad de meses (despues el pipeline lo
+# multiplica x10 por el undersampling). Los params salen de e021_params.json, que se genera
+# desde el __estable.json de e020 (ver el comando en competencia_1/README.md o en la sesion).
+hereda: e020_orig_deltas_rank.yaml
+experimento: e021_orig_deltas_rank_final
+
+periodos:
+  meses_final: [202104, 202105, 202106]
+
+final:
+  params_desde: archivo:competencia_1/configs/exp/e021_params.json
+  n_semillas: 20
+
+salida:
+  envios: [10000, 11000]
+
+etapas:
+  optuna: false
+  estabilidad: false
+  validacion: false
+  final: true
+  salida: true

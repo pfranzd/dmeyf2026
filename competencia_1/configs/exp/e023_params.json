@@ -1,0 +1,13 @@
+{
+  "nota": "params estables x3 en min_data_in_leaf (final de 3 meses)",
+  "origen": "work/competencia_1/params/e022_fe_deltas_todos_39972bee_7865c470__estable.json",
+  "study_name": "e022_fe_deltas_todos_39972bee_7865c470",
+  "fe_hash": "39972bee3ce9",
+  "params": {
+    "learning_rate": 0.0017658256266197448,
+    "num_iterations": 3355,
+    "feature_fraction": 0.09418074893545274,
+    "num_leaves": 32,
+    "min_data_in_leaf": 87
+  }
+}

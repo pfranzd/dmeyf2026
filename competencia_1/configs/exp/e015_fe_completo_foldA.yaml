@@ -1,0 +1,37 @@
+# FE completo (663 features) tuneado solo en el fold A (train 202104 -> valid 202106).
+# Hipotesis: el FE completo quedo subestimado porque el fold B entrena en 202103, donde todo lo
+# temporal es NULL; el final entrena en 202106, que tiene 3 meses de historia completos.
+# Comparar contra e012 (mismo fold) por mediana de 5 semillas en estabilidad_trials.csv.
+hereda: ../base.yaml
+experimento: e015_fe_completo_foldA
+
+periodos:
+  n_folds: 1
+  n_meses_train: 1
+
+optuna:
+  n_trials: 60
+  espacio:
+    learning_rate: {tipo: float, low: 0.001, high: 0.05, log: true}
+    feature_fraction: {tipo: float, low: 0.02, high: 0.5, log: true}
+    num_leaves: {tipo: int, low: 8, high: 256, log: true}
+    min_data_in_leaf: {tipo: int, low: 1, high: 2000, log: true}
+    num_iterations: {tipo: int, low: 200, high: 4096, log: false}
+
+estabilidad:
+  top_k: 5
+  n_semillas: 5
+
+final:
+  params_desde: estable:auto
+  n_semillas: 20
+
+salida:
+  envios: [10000, 11000, 12000, 13000]
+
+etapas:
+  optuna: true
+  estabilidad: true
+  validacion: true
+  final: true
+  salida: true

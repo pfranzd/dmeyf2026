@@ -1,0 +1,11 @@
+# e022 (orig + deltas sobre todas las variables, base del mejor publico e023) + lags 1 y 2
+# sobre todas las variables: 148 originales + 592 deltas + 296 lags = 1036 features.
+# Cambia la seccion fe -> fe_hash nuevo -> RECONSTRUYE features (~10-15 min, parquet mas grande).
+# Los params de e022 se optimizaron con otras features: lo correcto es re-tunear (este config).
+# Mismos folds, undersampling y espacio que e010/e022: comparable contra 357.65 M (e022).
+# Paso 1 de 2: Optuna + estabilidad + validacion. El final va en e025 (estilo e019/e023).
+hereda: e022_fe_deltas_todos.yaml
+experimento: e024_fe_deltas_lags_todos
+
+fe:
+  lags: {activo: true, n: [1, 2]}

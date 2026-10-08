@@ -1,0 +1,38 @@
+# Optuna nocturno: undersampling 0.5 + espacio ampliado (lambda_l2, min_gain_to_split, bagging).
+# Base por defecto: orig + deltas con 2 folds (e016). Si hoy gana el FE completo en fold A (e015),
+# cambiar `hereda: e015_fe_completo_foldA.yaml` y borrar dataset.excluir_bloques.
+# Reanudable: si se corta, relanzar el mismo comando (el estudio sigue en db/competencia_1.db);
+# para extender: --set optuna.n_trials=N (n_trials no entra en el nombre del estudio).
+hereda: e016_orig_deltas_us025.yaml
+experimento: e017_noche_us05
+
+dataset:
+  undersampling: 0.5
+
+lgbm:
+  fijos:
+    bagging_freq: 1
+
+optuna:
+  n_trials: 300
+  espacio:
+    learning_rate: {tipo: float, low: 0.001, high: 0.05, log: true}
+    feature_fraction: {tipo: float, low: 0.02, high: 0.5, log: true}
+    num_leaves: {tipo: int, low: 8, high: 512, log: true}
+    min_data_in_leaf: {tipo: int, low: 1, high: 10000, log: true}
+    num_iterations: {tipo: int, low: 200, high: 4096, log: false}
+    lambda_l2: {tipo: float, low: 0.001, high: 100.0, log: true}
+    min_gain_to_split: {tipo: float, low: 0.0, high: 1.0, log: false}
+    bagging_fraction: {tipo: float, low: 0.5, high: 1.0, log: false}
+
+estabilidad:
+  top_k: 10
+  n_semillas: 10
+
+# Ajustes por el publico del 2026-10-05: final de 3 meses (gano en los dos pares del 2x2) y
+# cortes <= 12000 (e011 a 13000 perdio 4.2 M contra 11000).
+periodos:
+  meses_final: [202104, 202105, 202106]
+
+salida:
+  envios: [10000, 11000, 12000]

@@ -192,3 +192,9 @@ project/target
 uv.lock
 
 monday/models/*
+
+# Salidas y datos de trabajo (nunca al repo)
+work/
+db/
+docs/
+.claude/settings.local.json

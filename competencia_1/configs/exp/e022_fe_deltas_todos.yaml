@@ -1,0 +1,50 @@
+# orig + deltas sobre TODAS las variables numericas (fe.campos_serie: todos) en vez de los 36
+# campos curados. Los deltas fueron la familia que mas aporto (orig -> orig+deltas: +19 M), pero
+# solo cubrian 36 de ~148 variables. El build solo genera lo que se usa (sin intrafila, lags,
+# ventanas, tendencia, historia ni rankings) para que el parquet no explote.
+# Cambia la seccion fe -> fe_hash nuevo -> la etapa features RECONSTRUYE (~10 min, ~10 GB).
+# Mismos folds, undersampling y espacio que e010: comparable contra su mediana de 357.8 M.
+# Paso 1 de 2: Optuna + estabilidad + validacion. El final va en e023 (estilo e019).
+hereda: ../base.yaml
+experimento: e022_fe_deltas_todos
+
+fe:
+  intrafila:
+    tc_consolidado: false
+    tc_fechas: false
+    ratios: false
+    agregados: false
+    flags: false
+  campos_serie: todos
+  lags: {activo: false, n: [1, 2]}
+  deltas: {activo: true, n: [1, 2], pct: true}
+  ventanas: {activo: false, tamanio: 3, stats: [avg, max, min, std], ratio_avg: true}
+  tendencia: {activo: false, tamanio: 3}
+  historia: false
+  rankings:
+    activo: false
+    campos: curado
+    ntile10: [ctrx_quarter, mcaja_ahorro, mpasivos_margen, mcuentas_saldo]
+
+optuna:
+  n_trials: 80
+  espacio:
+    learning_rate: {tipo: float, low: 0.001, high: 0.05, log: true}
+    feature_fraction: {tipo: float, low: 0.02, high: 0.5, log: true}
+    num_leaves: {tipo: int, low: 8, high: 256, log: true}
+    min_data_in_leaf: {tipo: int, low: 1, high: 2000, log: true}
+    num_iterations: {tipo: int, low: 200, high: 4096, log: false}
+
+estabilidad:
+  top_k: 5
+  n_semillas: 5
+
+final:
+  params_desde: estable:auto
+
+etapas:
+  optuna: true
+  estabilidad: true
+  validacion: true
+  final: false
+  salida: false
