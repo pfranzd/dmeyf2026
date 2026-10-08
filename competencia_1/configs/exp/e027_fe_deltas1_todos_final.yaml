@@ -1,0 +1,25 @@
+# Final de e026 (orig + delta_1/deltapct_1 sobre todas las variables) al estilo e023: 3 meses
+# (202104-202106), 20 semillas. SIN re-tunear: usa los params de e023 (e022 estable con
+# min_data_in_leaf x3, e023_params.json), optimizados con otras features -> se fuerza
+# params_ignorar_fe_hash. En validacion pareada e026 empato con e022 (356.10 vs 357.75 M).
+# Reusa la cache de features de e026 (mismo fe -> mismo fe_hash c9284d077fe6).
+hereda: e026_fe_deltas1_todos.yaml
+experimento: e027_fe_deltas1_todos_final
+
+periodos:
+  meses_final: [202104, 202105, 202106]
+
+final:
+  params_desde: archivo:competencia_1/configs/exp/e023_params.json
+  params_ignorar_fe_hash: true
+  n_semillas: 20
+
+salida:
+  envios: [10000, 11000]
+
+etapas:
+  optuna: false
+  estabilidad: false
+  validacion: false
+  final: true
+  salida: true

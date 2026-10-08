@@ -1,0 +1,21 @@
+# e012 (fold unico, orig + lag_1 + delta_1) con el modelo final entrenado solo en 202106.
+# Contraparte de e013. Usa los params estables del estudio de e012 (no re-tunea).
+hereda: e012_fold_unico_1mes.yaml
+experimento: e014_e012_final1m
+
+periodos:
+  meses_final: [202106]
+
+final:
+  params_desde: estable:e012_fold_unico_1mes_30197667_7051b191
+  n_semillas: 20
+
+salida:
+  envios: [10000, 11000, 12000]
+
+etapas:
+  optuna: false
+  estabilidad: false
+  validacion: false
+  final: true
+  salida: true

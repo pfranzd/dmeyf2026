@@ -1,0 +1,157 @@
+# ENTREGA DEFINITIVA (generada por `python -m competencia_1.entrega promover`; no editar a mano).
+# Reproducir: python -m competencia_1.entrega reproducir
+# Origen y sha256 esperado: ver entrega.json. Los hiperparámetros ya vienen escalados en
+# params.json (reescalar_min_data: false) y no hace falta Optuna.
+experimento: entrega
+semilla_maestra: 111623
+periodos:
+  target: 202108
+  gap: 2
+  n_meses_train: 1
+  n_folds: 2
+  meses_final:
+  - 202104
+  - 202105
+  - 202106
+target:
+  positivos:
+  - BAJA+1
+  - BAJA+2
+datos:
+  csv_procesado: datasets/processed/competencia_01.csv
+  csv_crudo: datasets/raw/competencia_01_crudo.csv
+  reconstruir_target: true
+fe:
+  originales: true
+  drop_drift:
+  - Master_fultimo_cierre
+  - Visa_fultimo_cierre
+  - Master_Finiciomora
+  - Visa_Finiciomora
+  drop_extra: []
+  intrafila:
+    tc_consolidado: false
+    tc_fechas: false
+    ratios: false
+    agregados: false
+    flags: false
+  campos_serie: todos
+  lags:
+    activo: false
+    n:
+    - 1
+    - 2
+  deltas:
+    activo: true
+    n:
+    - 1
+    - 2
+    pct: true
+  ventanas:
+    activo: false
+    tamanio: 3
+    stats:
+    - avg
+    - max
+    - min
+    - std
+    ratio_avg: true
+  tendencia:
+    activo: false
+    tamanio: 3
+  historia: false
+  rankings:
+    activo: false
+    campos: curado
+    ntile10:
+    - ctrx_quarter
+    - mcaja_ahorro
+    - mpasivos_margen
+    - mcuentas_saldo
+  canaritos:
+    activo: false
+    n: 0
+dataset:
+  undersampling: 0.1
+  excluir_bloques: []
+  excluir_features: []
+lgbm:
+  fijos:
+    objective: binary
+    max_bin: 31
+    boost_from_average: true
+    feature_pre_filter: false
+    force_row_wise: true
+    deterministic: true
+    num_threads: 8
+    verbosity: -1
+  manual:
+    learning_rate: 0.027
+    num_iterations: 1000
+    feature_fraction: 0.8
+    num_leaves: 8
+    min_data_in_leaf: 76
+optuna:
+  n_trials: 80
+  study_name: auto
+  ventana_meseta: 401
+  espacio:
+    learning_rate:
+      tipo: float
+      low: 0.001
+      high: 0.05
+      log: true
+    num_leaves:
+      tipo: int
+      low: 8
+      high: 256
+      log: true
+    min_data_in_leaf:
+      tipo: int
+      low: 1
+      high: 2000
+      log: true
+    feature_fraction:
+      tipo: float
+      low: 0.02
+      high: 0.5
+      log: true
+    num_iterations:
+      tipo: int
+      low: 200
+      high: 4096
+      log: false
+estabilidad:
+  top_k: 5
+  n_semillas: 5
+  criterio: mediana
+  n_simulaciones: 100
+ablacion:
+  n_semillas: 5
+  referencia: completo
+  variantes:
+    completo:
+      solo_bloques: null
+      excluir_bloques: []
+      excluir_features: []
+final:
+  params_desde: archivo:competencia_1/definitiva/params.json
+  n_semillas: 20
+  semillas: null
+  promedio: true
+  reescalar_min_data: false
+  params_ignorar_fe_hash: true
+salida:
+  envios:
+  - 11000
+  formato: solo_ids
+etapas:
+  datos: true
+  features: true
+  optuna: false
+  estabilidad: false
+  ablacion: false
+  canaritos: false
+  validacion: false
+  final: true
+  salida: true

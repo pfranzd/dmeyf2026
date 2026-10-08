@@ -1,0 +1,36 @@
+# orig + deltas (como e011) re-tuneado con undersampling 0.25 en vez de 0.1: Optuna ve ~2.3x
+# mas filas (los positivos se conservan todos) y el salto al final sin undersampling es x4, no x10.
+# Mismos 2 folds que e010/e011: comparable contra 354.6 M.
+hereda: ../base.yaml
+experimento: e016_orig_deltas_us025
+
+dataset:
+  undersampling: 0.25
+  excluir_bloques: [1a_tc_consolidado, 1b_tc_fechas, 1c_ratios_dominio, 1d_agregados, 1e_flags_riesgo, 2_rank_intrames, 3_lags, 5_ventanas, 6_tendencia, 7_historia]
+
+optuna:
+  n_trials: 60
+  espacio:
+    learning_rate: {tipo: float, low: 0.001, high: 0.05, log: true}
+    feature_fraction: {tipo: float, low: 0.02, high: 0.5, log: true}
+    num_leaves: {tipo: int, low: 8, high: 256, log: true}
+    min_data_in_leaf: {tipo: int, low: 1, high: 5000, log: true}
+    num_iterations: {tipo: int, low: 200, high: 4096, log: false}
+
+estabilidad:
+  top_k: 5
+  n_semillas: 5
+
+final:
+  params_desde: estable:auto
+  n_semillas: 20
+
+salida:
+  envios: [10000, 11000, 12000, 13000]
+
+etapas:
+  optuna: true
+  estabilidad: true
+  validacion: true
+  final: true
+  salida: true

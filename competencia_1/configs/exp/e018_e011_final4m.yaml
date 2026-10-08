@@ -1,0 +1,11 @@
+# e013 (params/features de e011, final de 3 meses) llevado a 4 meses: 202103-202106.
+# En el publico, final 3m > 1m en los dos pares (e013 vs e011: +2.0 M; e012 vs e014: +7.2 M).
+# Pregunta: ¿sigue sumando un mes mas? Ojo: en 202103 todos los deltas son NULL (no hay historia).
+hereda: e013_e011_final3m.yaml
+experimento: e018_e011_final4m
+
+periodos:
+  meses_final: [202103, 202104, 202105, 202106]
+
+etapas:
+  validacion: false

@@ -1,0 +1,11 @@
+# e013 (final de 3 meses) con min_data_in_leaf escalado por la cantidad de meses (x3).
+# Los params se tunearon con 1 mes de train; con 3 meses cada hoja ve ~3x filas con el mismo
+# min_data, lo que equivale a un arbol mas profundo/sobreajustado. Params en e019_params.json.
+hereda: e013_e011_final3m.yaml
+experimento: e019_e011_final3m_mindata
+
+final:
+  params_desde: archivo:competencia_1/configs/exp/e019_params.json
+
+etapas:
+  validacion: false

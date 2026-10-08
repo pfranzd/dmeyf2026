@@ -9,6 +9,7 @@ import csv
 import hashlib
 import json
 import logging
+import os
 import platform
 import subprocess
 import sys
@@ -20,7 +21,14 @@ import yaml
 
 from competencia_1.pipeline.config import RAIZ
 
-WORK = RAIZ / "work" / "competencia_1"
+
+def _resolver_work() -> Path:
+    """Carpeta de salidas. DMEYF_WORK la cambia (p. ej. work/entrega o un disco en GCP)."""
+    p = Path(os.environ.get("DMEYF_WORK") or RAIZ / "work" / "competencia_1")
+    return p if p.is_absolute() else RAIZ / p
+
+
+WORK = _resolver_work()
 RUNS_DIR = WORK / "runs"
 RUNS_CSV = WORK / "runs.csv"
 CAMPOS_RUNS_CSV = [

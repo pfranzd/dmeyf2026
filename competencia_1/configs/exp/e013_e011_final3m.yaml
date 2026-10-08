@@ -1,0 +1,8 @@
+# e011 con el modelo final entrenado en 202104-202106 en vez de solo 202106.
+# Aisla el efecto de los meses del final (mismas features y params que e011).
+# Con e011, e012 y e014 arma un 2x2: {params/features e011, e012} x {final 1 mes, 3 meses}.
+hereda: e011_entrega.yaml
+experimento: e013_e011_final3m
+
+periodos:
+  meses_final: [202104, 202105, 202106]

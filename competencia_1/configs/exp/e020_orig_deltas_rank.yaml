@@ -1,0 +1,33 @@
+# orig + deltas + rankings intra-mes (315 features), re-tuneado. En la ablacion (e004) quitar los
+# rankings fue lo unico que empeoro en los dos folds (-4.4 M / -4.7 M), pero e010/e011/e019 los
+# excluian. Los rankings por foto_mes ademas amortiguan el drift (aguinaldo 202106 vs 202108).
+# Mismos folds, undersampling y espacio que e010: comparable contra su mediana de 357.8 M.
+# Paso 1 de 2: solo Optuna + estabilidad + validacion. El final va en e021 (min_data x3, 3 meses).
+hereda: ../base.yaml
+experimento: e020_orig_deltas_rank
+
+dataset:
+  excluir_bloques: [1a_tc_consolidado, 1b_tc_fechas, 1c_ratios_dominio, 1d_agregados, 1e_flags_riesgo, 3_lags, 5_ventanas, 6_tendencia, 7_historia]
+
+optuna:
+  n_trials: 80
+  espacio:
+    learning_rate: {tipo: float, low: 0.001, high: 0.05, log: true}
+    feature_fraction: {tipo: float, low: 0.02, high: 0.5, log: true}
+    num_leaves: {tipo: int, low: 8, high: 256, log: true}
+    min_data_in_leaf: {tipo: int, low: 1, high: 2000, log: true}
+    num_iterations: {tipo: int, low: 200, high: 4096, log: false}
+
+estabilidad:
+  top_k: 5
+  n_semillas: 5
+
+final:
+  params_desde: estable:auto
+
+etapas:
+  optuna: true
+  estabilidad: true
+  validacion: true
+  final: false
+  salida: false

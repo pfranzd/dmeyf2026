@@ -1,0 +1,10 @@
+{
+  "nota": "hiperpar\u00e1metros finales (ya escalados) del run 20261007-075254_e023_fe_deltas_todos_final",
+  "params": {
+    "learning_rate": 0.0017658256266197448,
+    "num_iterations": 3355,
+    "feature_fraction": 0.09418074893545274,
+    "num_leaves": 32,
+    "min_data_in_leaf": 870
+  }
+}

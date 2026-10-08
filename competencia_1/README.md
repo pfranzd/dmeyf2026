@@ -8,6 +8,69 @@ La métrica de negocio es la ganancia: +1.072.500 por cada BAJA+2 estimulado y �
 otro cliente estimulado (`dmeyf/metrics.py`). Siempre se mide sobre BAJA+2, aunque el modelo
 se entrene con BAJA+1 + BAJA+2.
 
+## Reproducir la entrega
+
+La entrega definitiva está **congelada** en [`definitiva/`](definitiva/): una configuración
+autocontenida (`config.yaml`), los hiperparámetros finales (`params.json`) y el origen y el
+sha256 esperado del CSV (`entrega.json`). No depende de `configs/exp/`, de `work/` ni de
+Optuna: solo del dataset crudo de la cátedra. Reproducirla tarda ~25 min y usa ~10 GB de RAM.
+
+**Linux / VM de GCP** (crea el entorno, descarga el crudo y compara el sha256):
+
+```bash
+git clone <este repo> && cd <repo>
+bash competencia_1/scripts/reproducir_entrega.sh
+```
+
+**Windows (PowerShell)**, con Python ≥ 3.11:
+
+```powershell
+python -m venv .venv; .venv\Scripts\python -m pip install -r competencia_1/requirements.txt
+# descargar a datasets/raw/competencia_01_crudo.csv:
+#   https://storage.googleapis.com/open-courses/dmeyf2026-9c6f/competencia_01_crudo.csv
+.venv\Scripts\python -m competencia_1.entrega reproducir
+```
+
+Termina con `RESULTADO: OK, coincide` si el CSV generado tiene el mismo sha256 que el entregado.
+Todo se escribe en `work/entrega/` (no pisa los experimentos); `DMEYF_WORK=<dir>` lo cambia, por
+ejemplo a un disco montado en GCP. El CSV queda en `work/entrega/runs/<run>/submits/`.
+
+La igualdad byte a byte requiere las mismas versiones de las librerías (`requirements.txt`,
+también registradas en `entrega.json`) y `lgbm.fijos.num_threads` sin cambios. Si el sha256 no
+coincide pero el resto del log es igual, lo primero a revisar es la versión de LightGBM/DuckDB.
+
+### Cambiar la entrega definitiva
+
+Se elige un run ya ejecutado (por ejemplo desde `work/competencia_1/runs.csv`) y se congela:
+
+1. `python -m competencia_1.entrega promover --run work/competencia_1/runs/<run_id> --envios 11000`
+   (reescribe `definitiva/`; `--csv-procesado` usa el CSV procesado local en vez de rehacer el
+   target desde el crudo; `--modelo s<semilla>` promueve un modelo suelto en vez del promedio).
+2. Revisar el diff de `competencia_1/definitiva/`.
+3. Opcional: `python -m competencia_1.entrega reproducir` debe dar `OK, coincide`.
+4. Commit.
+
+`promover` falla, sin escribir nada, si el run no terminó en `ok`, no corrió la etapa `final` o
+no tiene un CSV con ese corte de envíos. Anotar el puntaje público en `entrega.json`
+(`resultado_publico`) y en la bitácora de [`configs/exp/README.md`](configs/exp/README.md).
+
+## Estructura
+
+```
+competencia_1/
+├── README.md, requirements.txt
+├── main.py            # pipeline por etapas (experimentos)
+├── entrega.py         # promover / reproducir la entrega definitiva
+├── ensamble.py        # promedia las probabilidades de varios runs
+├── definitiva/        # entrega congelada: config.yaml, params.json, entrega.json
+├── configs/base.yaml  # defaults; configs/exp/ = un YAML por experimento + su README
+├── scripts/           # preparar_entorno.sh y reproducir_entrega.sh (Linux / GCP)
+├── pipeline/          # código; tests/ = pytest
+```
+
+No se versionan (ver `.gitignore`): `work/` (runs, cachés, CSV), `db/` (estudios de Optuna),
+`datasets/`.
+
 ## Uso rápido
 
 Desde la raíz del repo, con el `.venv` activo:
@@ -103,51 +166,85 @@ que no haya duplicados, que el largo sea el esperado y que todos los IDs sean cl
 período objetivo. Si algo falla, borra el archivo y lanza el error. Nombre:
 `<run_id>_<modelo>_e<envios>.csv`, donde `<modelo>` es `s<semilla>` o `promedio`.
 
-## Experimentos
+## Cómo experimentar
 
-| Config | Propósito |
+**Ciclo:** una hipótesis = un YAML nuevo en `configs/exp/` con `hereda: ../base.yaml`, un
+`experimento:` propio y solo lo que cambia. Filtro rápido con `ablacion` (varias semillas, sin
+Optuna); confirmación con `optuna` + `estabilidad`; la entrega sale de un `eNNN_entrega.yaml`
+nuevo que se commitea y se anota en la bitácora (`configs/exp/README.md`); para dejarla como
+entrega definitiva, `python -m competencia_1.entrega promover`.
+
+```bash
+python -m competencia_1.main --config competencia_1/configs/exp/eNNN_mi_idea.yaml
+python -m competencia_1.main --config <yaml> --set optuna.n_trials=20
+python -m competencia_1.main --config <yaml> --etapas optuna,estabilidad
+```
+
+### Dónde cambiar cada cosa
+
+| Quiero cambiar… | Archivo | Qué tocar |
+|---|---|---|
+| Features que usa el modelo (sin reconstruir el FE) | `configs/exp/<tu>.yaml` | `dataset.excluir_bloques`, `dataset.excluir_features` |
+| Comparar conjuntos de features | `configs/exp/<tu>.yaml` | `ablacion.variantes` y `etapas.ablacion: true` (ver `e004`) |
+| Variables sobre las que se calculan lags, deltas y ventanas | `configs/exp/<tu>.yaml` | `fe.campos_serie`: `curado`, `todos` o lista (reconstruye el FE, ~10 min) |
+| Activar o apagar familias de FE | `configs/exp/<tu>.yaml` | `fe.lags`, `fe.deltas`, `fe.ventanas`, `fe.tendencia`, `fe.rankings`, `fe.intrafila.*` |
+| Un ratio o flag nuevo | `pipeline/features/intrafila.py` | Fila nueva en `RATIOS` o `FLAGS`; subir `FE_VERSION` en `pipeline/features/__init__.py` |
+| Variables de las series o rankings curados | `pipeline/features/campos.py` | `CAMPOS_SERIE_CURADO`, `CAMPOS_RANK_CURADO` |
+| Una familia de features nueva | `pipeline/features/` | `sql_<familia>()` nuevo, enchufado en `query.py`, flag en `FE` de `pipeline/config.py` y en `configs/base.yaml`; subir `FE_VERSION` |
+| Espacio de búsqueda de Optuna | `configs/exp/<tu>.yaml` | `optuna.espacio` (`tipo`, `low`, `high`, `log`), `optuna.n_trials` |
+| Parámetros fijos de LightGBM | `configs/base.yaml` o tu YAML | `lgbm.fijos` |
+| Target | `configs/exp/<tu>.yaml` | `target.positivos` |
+| Undersampling | `configs/exp/<tu>.yaml` | `dataset.undersampling` |
+| Meses del modelo final / mes objetivo | `configs/exp/<tu>.yaml` | `periodos.meses_final` / `periodos.target` |
+| Semillerío y cortes de envíos | `configs/exp/<tu>.yaml` | `final.n_semillas`, `final.promedio`, `salida.envios` |
+| Hiperparámetros del modelo final | `configs/exp/<tu>.yaml` | `final.params_desde: estable:<estudio>` (nombres en `work/competencia_1/params/`) |
+| Algoritmo o código de entrenamiento | `pipeline/modelo.py`, `pipeline/final.py` | Entrenamiento y predicción |
+| Una clave de config nueva | `pipeline/config.py` **y** `configs/base.yaml` | Si falta en uno, es un error |
+| Una etapa nueva | `pipeline/<etapa>.py` y `main.py` | Agregar a `ORDEN_ETAPAS` y registrar en `ETAPAS` |
+| La métrica de ganancia | `dmeyf/metrics.py` | `ganancia_prob`, `curva_ganancia`, `ganancia_meseta` |
+| Cambiar la entrega definitiva | `python -m competencia_1.entrega promover` | `--run`, `--envios` (ver «Reproducir la entrega») |
+
+Cuidados: no poner `max_bin` ni `feature_pre_filter` en `optuna.espacio` (el Dataset se arma
+una vez con `lgbm.fijos`); si cambia el SQL de FE, subir `FE_VERSION` o se reutiliza la caché
+vieja; para quitar una variante o clave heredada, ponerla en `null`.
+
+### Dónde mirar los resultados
+
+| Qué | Dónde |
 |---|---|
-| `e001_baseline_catedra` | Baseline de cátedra (z470): originales, target BAJA+2, sin undersampling |
-| `e002_fe_completo` | Igual, con todo el FE (aísla el efecto del FE) |
-| `e003_optuna` | Optuna sobre el FE completo (50 trials) y estabilidad |
-| `e004_ablacion_fe` | Ablación de familias de FE (14 variantes × 5 semillas) |
-| `e005_drift_canaritos` | Caché con las columnas de drift y 20 canaritos |
-| `e006_drift` | ¿Sirve conservar las columnas con drift? |
-| `e007_canaritos`, `e008_seleccion_canaritos` | Importancia contra canaritos y selección top-K |
-| `e009_optuna_orig_deltas`, `e010_optuna_orig_deltas_ext` | Optuna sobre originales + deltas (e010 amplía el espacio) |
-| `e011_entrega` | Entrega: `orig + deltas`, parámetros estables de e010, 20 semillas |
+| Todos los runs | `work/competencia_1/runs.csv` |
+| Ablación | `runs/<run_id>/ablacion.csv` (`delta_media`, `delta_por_fold`, `veredicto`) |
+| Estabilidad de trials | `runs/<run_id>/estabilidad_trials.csv` (`semillas_mediana`) y `estabilidad.json` |
+| Log, config y metadatos | `runs/<run_id>/run.log`, `config_resuelta.yaml`, `meta.json` |
+| Hiperparámetros ganadores | `work/competencia_1/params/<estudio>__estable.json` |
 
-## Hallazgos (validación en 2 folds temporales: valid 202106 y 202105, ganancia meseta)
+### Cómo decidir si algo mejora
 
-- **Tunear importa más que el FE:** 4 trials al azar sobre el FE completo ya rinden ~318 M
-  contra 291 M con los parámetros de z470.
-- **Promediar semillas aporta ~+20 M** sobre un modelo suelto en validación. Ojo: allí cada
-  semilla ve otra muestra de undersampling; el modelo final entrena sin undersampling, así
-  que el beneficio real puede ser menor.
-- **FE completo vs solo originales: +19 M**, casi todo en 202106 (nulo en 202105). Quitar una
-  sola familia queda dentro del ruido; `orig + deltas` (292 features) casi iguala al
-  completo, y re-tuneado lo supera por ~18 M (354 M contra 336 M).
-- **Piso de ruido ~±6 M:** sumar 20 columnas aleatorias dio +5,9 M en 5 de 5 semillas.
-  Diferencias menores entre conjuntos de features no son interpretables.
-- **Drift:** quitar las columnas con drift (z701) no pierde nada (−2,2 ± 1,4 M a favor de quitarlas).
-- **Canaritos con importancia por ganancia no sirven para podar aquí:** absorben el 10 % de
-  la ganancia y marcan el 97 % de las features como ruido; quedarse con el top 25 / 50 / 100
-  pierde 76 / 38 / 22 M.
-- **El leaderboard público engaña:** público y privado parten el mismo mes, así que con
-  modelos de ganancia total parecida el ganador del público pierde el privado casi siempre
-  (la desviación del privado es de ~10 M). No elegir entre candidatos por el público.
-- Los valores de validación se midieron en los mismos meses con los que se eligieron los
-  parámetros: están algo inflados. No son una estimación del rendimiento en 202108.
+- Comparar la **mediana de 5 semillas**, no el valor de Optuna. Referencia actual: **357,8 M**
+  (trial 53 de e010), mismo protocolo.
+- Piso de ruido ~±6 M: adoptar un cambio solo si supera ~+10 M **y** es positivo en los dos folds.
+- Un conjunto de features nuevo se **re-tunea**; los parámetros de otro conjunto sesgan la comparación.
+- No elegir por el leaderboard público.
+- Hay 4 meses con target (202103–202106): con `gap=2`, `n_meses_train=1` y `n_folds=2` ya están
+  todos usados; subir `n_folds` o `n_meses_train` falla por mes sin target completo.
+- Antes de commitear: `pytest` y `ruff`. No commitear `work/`, datos ni credenciales.
 
-## Bitácora de entregas
+### Ideas pendientes (hipótesis, no promesas)
 
-| Fecha | Run | Config | Código | Archivo | sha256 | Resultado |
-|---|---|---|---|---|---|---|
-| 2026-10-05 | `20261004-235154_e011_entrega` | `configs/exp/e011_entrega.yaml` | `aa6f34c` | `…_promedio_e11000.csv` (principal) | `cebde444ffac…f4a6` | _completar_ |
-| 2026-10-05 | ídem | ídem | ídem | `…_promedio_e10000.csv` | `f86168bc66a5…04d0` | _completar_ |
-| 2026-10-05 | ídem | ídem | ídem | `…_promedio_e12000.csv` | `6d9621b1dea0…9864` | _completar_ |
+1. Deltas sobre más variables: `fe.campos_serie: todos` con ventanas, tendencia, rankings e
+   intrafila apagados, y luego `dataset.excluir_bloques` como en e009.
+2. Re-tunear `orig + deltas` con `target.positivos: [BAJA+2]` (todo lo tuneado usó BAJA+1 + BAJA+2).
+3. Sumar `lambda_l2` y `min_gain_to_split` a `optuna.espacio`.
+4. `periodos.meses_final` con más meses: no validable con los datos actuales y exige revisar
+   `num_iterations` y `min_data_in_leaf`.
+5. Más ratios en `intrafila.py` (`ctrx_quarter`, transacciones, saldos).
 
-Los CSV están en `work/competencia_1/runs/20261004-235154_e011_entrega/submits/` (no se
-versionan). Con el mismo commit y la misma base, `python -m competencia_1.main --config
-competencia_1/configs/exp/e011_entrega.yaml` regenera los mismos archivos (mismo sha256).
-Cada nueva entrega se agrega a esta tabla junto con su run y su resultado.
+Tiempos de referencia: FE ~10 min; Optuna de 80 trials sobre 292 features ~25 min;
+estabilidad ~7 min; final de 20 semillas ~12 min.
+
+## Experimentos y bitácora
+
+Las configuraciones de cada experimento (`configs/exp/eNNN_*.yaml`), los hallazgos de
+validación y la bitácora de puntajes públicos están en
+[`configs/exp/README.md`](configs/exp/README.md). Los resultados (runs, cachés, estudios de
+Optuna) viven en `work/` y `db/`, que no se versionan.

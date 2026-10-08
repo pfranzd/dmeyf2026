@@ -1,0 +1,12 @@
+{
+  "nota": "trial 53 de e010 (estable) con min_data_in_leaf x3 (49 -> 147): el final de 3 meses tiene 3x filas. El pipeline reescala x10 por undersampling -> 1470.",
+  "study_name": "e010_optuna_orig_deltas_ext_30197667_5b46e672",
+  "fe_hash": "30197667f3db",
+  "params": {
+    "learning_rate": 0.006548544892262359,
+    "num_iterations": 2908,
+    "feature_fraction": 0.03408670713612519,
+    "num_leaves": 15,
+    "min_data_in_leaf": 147
+  }
+}
