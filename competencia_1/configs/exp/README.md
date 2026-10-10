@@ -30,9 +30,12 @@ La versión **definitiva** que debe reproducirse no se corre desde acá: está c
 | `e022_fe_deltas_todos`, `e023_fe_deltas_todos_final` | Deltas 1 y 2 sobre **todas** las variables (740 features); e023 es el final al estilo e019 (`e023_params.json`) |
 | `e024_fe_deltas_lags_todos`, `e025_…_final` | e022 + lags 1 y 2 (1036 features); solo se corrió la validación |
 | `e026_fe_deltas1_todos`, `e027_…_final` | Deltas de 1 mes sobre todas las variables (444 features) |
+| `e028` (screening, sin config propia) | `num_iterations` 5000 / 7000 y lr/2 sobre los params de e023, en la validación de 2 folds: 356,1 / 354,0 / 356,9 M, sin mejora |
+| `e029_fe_deltas_todos_us03`, `e030_…_final` | e022 con undersampling 0,3; e030 es el final al estilo e023 (`e030_params.json`) |
+| `e031_fe_deltas_todos_fold2m` | e022 con un solo fold de 2 meses de train (202103–202104 → valid 202106); no se corrió |
 
-Archivos auxiliares: `e012_excluir.txt` (columnas a excluir), `e019_params.json` y
-`e023_params.json` (hiperparámetros con `min_data_in_leaf` ya multiplicado por 3).
+Archivos auxiliares: `e012_excluir.txt` (columnas a excluir), `e019_params.json`,
+`e023_params.json` y `e030_params.json` (hiperparámetros con `min_data_in_leaf` ya multiplicado por 3).
 
 ## Hallazgos (validación en 2 folds temporales: valid 202106 y 202105, ganancia meseta)
 
@@ -65,6 +68,11 @@ Archivos auxiliares: `e012_excluir.txt` (columnas a excluir), `e019_params.json`
   público peor (99,1 M): la búsqueda llegó a una meseta de ~355–360 M.
 - **Ensamblar no suma:** promediar rankings de e019 y e017 dio 101,9 M y de e019 y e023,
   102,3 M, cerca del promedio de sus partes.
+- **Undersampling 0,3 empata con 0,1:** e029 dio una mediana de validación de 359,3 M contra
+  357,7 M de e022, y e030 dio 105,02 M en el público contra 105,60 M de e023 (top-11 000
+  coincidentes en un 92 %). Lo único distinto es la estabilidad: el desvío entre semillas de los
+  top-5 baja de 2,4–5,3 M a 1,1–3,5 M.
+- **Subir `num_iterations` no mejora:** con lr × iteraciones ≈ 6 está el óptimo (e028).
 - Los valores de validación se midieron en los mismos meses con los que se eligieron los
   parámetros: están algo inflados. No son una estimación del rendimiento en 202108.
 
@@ -86,6 +94,7 @@ diferencias menores como criterio.
 | `20261007-075254_e023_fe_deltas_todos_final` | `e023_fe_deltas_todos_final` | **105,60 M** | 10 000 envíos: 104,03 M. **Entrega definitiva actual** |
 | ensamble `ens02_e019_e023` | `python -m competencia_1.ensamble` | 102,27 M (10 500) | |
 | `20261007-193742_e027_fe_deltas1_todos_final` | `e027_fe_deltas1_todos_final` | 98,18 M | 10 000 envíos: 96,11 M |
+| `20261008-071859_e030_fe_deltas_todos_us03_final` | `e030_fe_deltas_todos_us03_final` | 105,02 M | 10 000 envíos: 103,26 M. Empata con e023 |
 
 Los CSV y los runs están en `work/` (no se versionan). El sha256 de la entrega definitiva está
 en `competencia_1/definitiva/entrega.json`.

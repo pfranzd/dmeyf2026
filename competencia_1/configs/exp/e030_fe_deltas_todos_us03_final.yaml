@@ -1,0 +1,23 @@
+# Paso 2 de 2 de e029: modelo final al estilo e023: 3 meses (202104-202106) y
+# min_data_in_leaf x3 por la cantidad de meses (e030_params.json); el pipeline luego lo divide
+# por el undersampling (0.3) al entrenar sin undersampling.
+# Reusa la cache de features de e022/e029 (mismo fe -> mismo fe_hash).
+hereda: e029_fe_deltas_todos_us03.yaml
+experimento: e030_fe_deltas_todos_us03_final
+
+periodos:
+  meses_final: [202104, 202105, 202106]
+
+final:
+  params_desde: archivo:competencia_1/configs/exp/e030_params.json
+  n_semillas: 20
+
+salida:
+  envios: [10000, 11000]
+
+etapas:
+  optuna: false
+  estabilidad: false
+  validacion: false
+  final: true
+  salida: true
