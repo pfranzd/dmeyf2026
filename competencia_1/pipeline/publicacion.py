@@ -11,6 +11,7 @@ chequear que no entren datos ni archivos pesados → validar → commit → push
 """
 
 import filecmp
+import gc
 import hashlib
 import json
 import logging
@@ -240,19 +241,23 @@ def _resumen_optuna(meta: dict, cfg: dict, destino: Path) -> dict | None:
         from_storage=f"sqlite:///{db.as_posix()}",
         to_storage=f"sqlite:///{salida.as_posix()}",
     )
-    estudio = optuna.load_study(
-        study_name=o["study_name"], storage=f"sqlite:///{salida.as_posix()}"
-    )
-    completos = [t for t in estudio.trials if t.state.name == "COMPLETE"]
+    almacen = optuna.storages.RDBStorage(f"sqlite:///{salida.as_posix()}")
+    try:
+        estudio = optuna.load_study(study_name=o["study_name"], storage=almacen)
+        trials = estudio.trials
+    finally:
+        almacen.engine.dispose()
+        gc.collect()
+    completos = [t for t in trials if t.state.name == "COMPLETE"]
     k = cfg["final"]["params_desde"]
     n_top = int(k.split(":")[1]) if k.startswith("top:") else 1
     top = sorted(completos, key=lambda t: t.value, reverse=True)[:n_top]
     resumen = {
         "estudio": o["study_name"],
         "objetivo": cfg["optuna"].get("objetivo", "ganancia"),
-        "n_trials": len(estudio.trials),
+        "n_trials": len(trials),
         "n_completos": len(completos),
-        "n_podados": sum(t.state.name == "PRUNED" for t in estudio.trials),
+        "n_podados": sum(t.state.name == "PRUNED" for t in trials),
         "top": [{"trial": t.number, "valor": t.value, "params": t.params} for t in top],
     }
     _escribir(
@@ -406,6 +411,17 @@ def _python_del_venv(venv: Path) -> Path:
     return venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
+def _pip(py: str, *args: str) -> None:
+    """pip con reintento: el pip que trae un venv de Python 3.11.0 puede no validar el
+    certificado de PyPI detrás de ciertos antivirus/proxies; se reintenta confiando en PyPI."""
+    base = [py, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", *args]
+    if subprocess.run(base, check=False).returncode == 0:
+        return
+    log.warning("pip falló; reintento confiando en pypi.org y files.pythonhosted.org")
+    confiar = ["--trusted-host", "pypi.org", "--trusted-host", "files.pythonhosted.org"]
+    subprocess.run([*base, *confiar], check=True)
+
+
 def preparar_venv(carpeta: Path) -> Path:
     """venv nuevo desde requirements-lock.txt (se reutiliza si el lock no cambió)."""
     venv = carpeta / ".venv"
@@ -417,9 +433,10 @@ def preparar_venv(carpeta: Path) -> Path:
         sello.unlink(missing_ok=True)
     if not sello.exists() or sello.read_text() != huella:
         py = str(_python_del_venv(venv))
-        subprocess.run(
-            [py, "-m", "pip", "install", "--quiet", "-r", str(lock)], check=True
-        )
+        _pip(
+            py, "--upgrade", "pip"
+        )  # el pip nuevo valida con el almacén de certificados del SO
+        _pip(py, "-r", str(lock))
         sello.write_text(huella)
     return _python_del_venv(venv)
 
@@ -493,7 +510,11 @@ def _restaurar(repo: Path) -> None:
         _git(repo, "reset", "-q", "--hard", "HEAD", check=False)
     else:
         _git(repo, "rm", "-rq", "--cached", "--ignore-unmatch", ".", check=False)
+    gc.collect()  # suelta archivos abiertos (Windows no borra un archivo en uso)
     _git(repo, "clean", "-fdq", check=False)
+    resto = _git(repo, "status", "--porcelain", check=False)
+    if resto:
+        log.warning("el repo de entregas quedó con cambios sin limpiar:\n%s", resto)
 
 
 def publicar(
