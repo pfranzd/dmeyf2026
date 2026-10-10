@@ -36,6 +36,7 @@ bash reproducir.sh              # o: bash reproducir.sh entrenar | bash reproduc
 ```powershell
 git clone @@URL_REPO@@; cd dmeyf2026-entregas\@@CARPETA@@
 py -3.11 -m venv .venv
+.venv\Scripts\python -m pip install --upgrade pip
 .venv\Scripts\python -m pip install -r requirements-lock.txt
 $env:ENTREGA_MODO = "predecir"      # o "entrenar" / "completo"
 .venv\Scripts\python entrega.py
