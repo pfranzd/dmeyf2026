@@ -11,9 +11,17 @@ se entrene con BAJA+1 + BAJA+2.
 ## Reproducir la entrega
 
 La entrega definitiva está **congelada** en [`definitiva/`](definitiva/): una configuración
-autocontenida (`config.yaml`), los hiperparámetros finales (`params.json`) y el origen y el
-sha256 esperado del CSV (`entrega.json`). No depende de `configs/exp/`, de `work/` ni de
-Optuna: solo del dataset crudo de la cátedra. Reproducirla tarda ~80 min (FE ~10 min y 24 modelos) y usa ~10 GB de RAM.
+autocontenida (`config.yaml`), los hiperparámetros finales (`params.json`), los **24 modelos ya
+entrenados** (`modelos/`, ~140 MB) y el origen y el sha256 esperado del CSV (`entrega.json`). No
+depende de `configs/exp/`, de `work/` ni de Optuna: solo del dataset crudo de la cátedra.
+
+- **Reproducción rápida (por defecto, ~15 min, ~10 GB de RAM):** reconstruye los datos y las
+  features desde el crudo y **solo predice** con los modelos guardados. Un modelo guardado y
+  vuelto a cargar predice idéntico bit a bit, así que el CSV es el mismo.
+- **Reproducción completa (`--entrenar`, ~80 min):** ignora los modelos guardados y reentrena
+  los 24 desde cero (12 conjuntos de hiperparámetros × 2 semillas). Da el mismo CSV.
+
+Ambos caminos terminan con `RESULTADO: OK, coincide` si el sha256 es el de `entrega.json`.
 
 **Linux / VM de GCP** (crea el entorno, descarga el crudo y compara el sha256):
 
@@ -32,6 +40,7 @@ python -m venv .venv; .venv\Scripts\python -m pip install -r competencia_1/requi
 ```
 
 Termina con `RESULTADO: OK, coincide` si el CSV generado tiene el mismo sha256 que el entregado.
+Para reentrenar todo: `... reproducir --entrenar` (en Linux, `bash .../reproducir_entrega.sh --entrenar`).
 Todo se escribe en `work/entrega/` (no pisa los experimentos); `DMEYF_WORK=<dir>` lo cambia, por
 ejemplo a un disco montado en GCP. El CSV queda en `work/entrega/runs/<run>/submits/`.
 
@@ -45,7 +54,9 @@ Se elige un run ya ejecutado (por ejemplo desde `work/competencia_1/runs.csv`) y
 
 1. `python -m competencia_1.entrega promover --run work/competencia_1/runs/<run_id> --envios 11000`
    (reescribe `definitiva/`; `--csv-procesado` usa el CSV procesado local en vez de rehacer el
-   target desde el crudo; `--modelo s<semilla>` promueve un modelo suelto en vez del promedio).
+   target desde el crudo; `--modelo s<semilla>` promueve un modelo suelto en vez del promedio;
+   `--con-modelos` copia los modelos entrenados del run a `definitiva/modelos/`, así la
+   reproducción solo predice).
 2. Revisar el diff de `competencia_1/definitiva/`.
 3. Opcional: `python -m competencia_1.entrega reproducir` debe dar `OK, coincide`.
 4. Commit.

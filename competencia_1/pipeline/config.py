@@ -168,6 +168,7 @@ class Final:
     params_ignorar_fe_hash: (
         bool  # usar params optimizados con otras features (con warning)
     )
+    modelos_desde: str | None  # carpeta con modelos ya entrenados: solo predecir
 
 
 @dataclass(frozen=True)
@@ -215,6 +216,7 @@ class Config:
 CLAVES_POSTERIORES = {
     "periodos": {"folds": None},
     "optuna": {"objetivo": "ganancia", "pruning": False},
+    "final": {"modelos_desde": None},
 }
 
 
