@@ -102,6 +102,7 @@ final:
   semillas: null                   # lista explícita (anula n_semillas)
   promedio: true
   reescalar_min_data: true         # true: min_data / undersampling | false | "filas": por filas de train
+  modelos_desde: null              # carpeta con modelos <conjunto>_s<semilla>.txt: solo predice (sin entrenar)
   params_ignorar_fe_hash: false    # true: usar params optimizados con OTRAS features (solo experimentos)
 
 salida:

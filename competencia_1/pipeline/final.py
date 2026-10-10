@@ -8,11 +8,16 @@ Ensamble de hiperparámetros: con `final.params_desde: top:<k>` (los k mejores t
 estudio) o un json con la clave `ensamble`, se entrena cada conjunto × cada semilla. Los
 modelos sueltos quedan en `probas/ensamble/<conjunto>_s<seed>.parquet` y solo el
 `promedio.parquet` queda en `probas/` (de ahí sale el CSV).
+
+Con `final.modelos_desde: <carpeta>` no se entrena: se cargan los modelos ya entrenados
+(`<conjunto>_s<semilla>.txt`, en el mismo orden que el entrenamiento) y solo se predice. Los
+modelos guardados predicen idéntico bit a bit, así que el promedio y el CSV no cambian.
 """
 
 import logging
 from pathlib import Path
 
+import lightgbm as lgb
 import numpy as np
 import polars as pl
 
@@ -58,6 +63,21 @@ def _factor_filas(cfg: cfgmod.Config, parquet: Path, meses_final: list[int]) -> 
     return contar_filas(parquet, meses_final) / filas_fold
 
 
+def _cargar_modelo(ruta: Path, n_features: int) -> lgb.Booster:
+    if not ruta.exists():
+        raise FileNotFoundError(
+            f"falta el modelo {ruta}: ¿los conjuntos y semillas del config coinciden con los "
+            "modelos guardados?"
+        )
+    modelo = lgb.Booster(model_file=str(ruta))
+    if modelo.num_feature() != n_features:
+        raise ValueError(
+            f"{ruta.name}: entrenado con {modelo.num_feature()} features pero el FE actual "
+            f"da {n_features}"
+        )
+    return modelo
+
+
 def etapa_final(cfg: cfgmod.Config, run: Run) -> None:
     parquet, fe_hash = construir_features(cfg)
     features = columnas_seleccionadas(cfg, parquet)
@@ -81,21 +101,33 @@ def etapa_final(cfg: cfgmod.Config, run: Run) -> None:
         conjuntos[0][1] if not ensamble else "(ver meta.json)",
     )
 
-    train = cargar_particion(parquet, features, meses, cfg.target.positivos)
+    cargar = cfg.final.modelos_desde is not None
     objetivo = cargar_particion(
         parquet, features, [cfg.periodos.target], cfg.target.positivos, con_target=False
     )
-    log.info(
-        "train: %d filas, %d positivos (%.2f%%) | a predecir: %d clientes",
-        len(train),
-        train.y.sum(),
-        100 * train.y.mean(),
-        len(objetivo),
-    )
+    if cargar:
+        origen = Path(cfg.final.modelos_desde)
+        origen = origen if origen.is_absolute() else cfgmod.RAIZ / origen
+        train = None
+        log.info(
+            "modelos ya entrenados en %s: no se entrena | a predecir: %d clientes",
+            origen,
+            len(objetivo),
+        )
+    else:
+        train = cargar_particion(parquet, features, meses, cfg.target.positivos)
+        log.info(
+            "train: %d filas, %d positivos (%.2f%%) | a predecir: %d clientes",
+            len(train),
+            train.y.sum(),
+            100 * train.y.mean(),
+            len(objetivo),
+        )
 
     dir_probas, dir_modelos = run.dir / "probas", run.dir / "modelos"
     dir_probas.mkdir(exist_ok=True)
-    dir_modelos.mkdir(exist_ok=True)
+    if not cargar:
+        dir_modelos.mkdir(exist_ok=True)
     dir_sueltas = dir_probas / "ensamble" if ensamble else dir_probas
     dir_sueltas.mkdir(exist_ok=True)
 
@@ -104,18 +136,24 @@ def etapa_final(cfg: cfgmod.Config, run: Run) -> None:
     for etiqueta, params in conjuntos:
         for seed in semillas:
             nombre = f"{etiqueta}_s{seed}" if etiqueta else f"s{seed}"
-            p, n_iter = params_lgbm(cfg, params, seed)
-            modelo = entrenar_lgbm(train.X, train.y, features, p, n_iter)
+            if cargar:
+                modelo = _cargar_modelo(origen / f"{nombre}.txt", len(features))
+            else:
+                p, n_iter = params_lgbm(cfg, params, seed)
+                modelo = entrenar_lgbm(train.X, train.y, features, p, n_iter)
             prob = predecir(modelo, objetivo.X)
             todas.append(prob)
             df = pl.DataFrame({"numero_de_cliente": objetivo.ids, "prob": prob})
             destino = dir_sueltas / f"{nombre}.parquet"
             df.write_parquet(destino)
-            modelo.save_model(str(dir_modelos / f"{nombre}.txt"))
-            if len(todas) == 1:
-                importancias(modelo).write_csv(run.dir / "importancias.csv")
-            for f in (destino, dir_modelos / f"{nombre}.txt"):
-                run.registrar_archivo(f)
+            if cargar:
+                run.registrar_archivo(destino)
+            else:
+                modelo.save_model(str(dir_modelos / f"{nombre}.txt"))
+                if len(todas) == 1:
+                    importancias(modelo).write_csv(run.dir / "importancias.csv")
+                for f in (destino, dir_modelos / f"{nombre}.txt"):
+                    run.registrar_archivo(f)
             log.info(
                 "modelo %s (%d/%d): prob media=%.5f",
                 nombre,
@@ -141,5 +179,6 @@ def etapa_final(cfg: cfgmod.Config, run: Run) -> None:
             ),
             "n_features": len(features),
             "meses_final": meses,
+            "modelos_desde": cfg.final.modelos_desde,
         }
     )

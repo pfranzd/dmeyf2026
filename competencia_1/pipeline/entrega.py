@@ -79,8 +79,14 @@ def promover(
     modelo: str = "promedio",
     destino: Path = DIR_DEFINITIVA,
     desde_crudo: bool = True,
+    con_modelos: bool = False,
 ) -> Path:
-    """Escribe config.yaml, params.json y entrega.json en `destino` a partir de un run."""
+    """Escribe config.yaml, params.json y entrega.json en `destino` a partir de un run.
+
+    Con `con_modelos` copia los modelos entrenados del run a `destino/modelos/` y el config
+    queda en modo "solo predecir" (`final.modelos_desde`): reproducir tarda minutos en vez de
+    reentrenar. Pesa del orden de 100 MB: queda a criterio de quien promueve.
+    """
     run_dir = Path(run_dir)
     run_dir = run_dir if run_dir.is_absolute() else RAIZ / run_dir
     meta, cfg = _cargar_run(run_dir)
@@ -111,11 +117,27 @@ def promover(
             "params_ignorar_fe_hash": True,
         }
     )
+    entrega["final"]["modelos_desde"] = None
+    if con_modelos:
+        origen = run_dir / "modelos"
+        archivos = sorted(origen.glob("*.txt"))
+        if not archivos:
+            raise ValueError(f"el run no tiene modelos guardados en {origen}")
+        entrega["final"]["modelos_desde"] = ruta_relativa(destino / "modelos")
     entrega["salida"]["envios"] = [envios]
     entrega["etapas"] = {k: k in ETAPAS_ENTREGA for k in entrega["etapas"]}
     cfgmod.desde_dict(entrega)  # valida: falla antes de escribir nada
 
     destino.mkdir(parents=True, exist_ok=True)
+    viejos = destino / "modelos"
+    if (
+        viejos.exists()
+    ):  # los modelos de una entrega anterior no se mezclan con los nuevos
+        shutil.rmtree(viejos)
+    if con_modelos:
+        viejos.mkdir()
+        for a in archivos:
+            shutil.copy2(a, viejos / a.name)
     (destino / "config.yaml").write_text(
         CABECERA + yaml.safe_dump(entrega, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
@@ -153,6 +175,7 @@ def promover(
         "sha256_esperado": csv_sha,
         "versiones": meta.get("versiones"),
         "resultado_publico": resultado_publico,
+        "modelos_incluidos": len(archivos) if con_modelos else 0,
     }
     (destino / "entrega.json").write_text(
         json.dumps(info, indent=2, ensure_ascii=False) + "\n",
@@ -168,8 +191,14 @@ def promover(
     return destino
 
 
-def reproducir(destino: Path = DIR_DEFINITIVA, limpiar: bool = False) -> bool:
-    """Corre config.yaml y compara el sha256 del CSV con entrega.json. True si coincide."""
+def reproducir(
+    destino: Path = DIR_DEFINITIVA, limpiar: bool = False, entrenar: bool = False
+) -> bool:
+    """Corre config.yaml y compara el sha256 del CSV con entrega.json. True si coincide.
+
+    Si la entrega incluye modelos entrenados, solo predice con ellos; `entrenar=True` los
+    ignora y reentrena todo desde cero.
+    """
     # Import diferido: main arrastra todo el pipeline y WORK ya quedó fijado por el entorno.
     from competencia_1 import main as main_mod
     from competencia_1.pipeline.tracking import RUNS_DIR, WORK
@@ -182,7 +211,10 @@ def reproducir(destino: Path = DIR_DEFINITIVA, limpiar: bool = False) -> bool:
     if limpiar and WORK.exists():
         shutil.rmtree(WORK)
     antes = {p.name for p in RUNS_DIR.glob("*")} if RUNS_DIR.exists() else set()
-    main_mod.main(["--config", str(destino / "config.yaml")])
+    args = ["--config", str(destino / "config.yaml")]
+    if entrenar:
+        args += ["--set", "final.modelos_desde=null"]
+    main_mod.main(args)
     nuevos = sorted({p.name for p in RUNS_DIR.glob("*")} - antes)
     if not nuevos:
         raise RuntimeError("la corrida no generó ninguna carpeta de run")

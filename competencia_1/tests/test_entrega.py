@@ -156,3 +156,53 @@ def test_promover_toma_un_corte_no_registrado_desde_submits(tmp_path):
 
     assert info["sha256_esperado"] == hashlib.sha256(csv.read_bytes()).hexdigest()
     assert info["csv_original"] == csv.name and info["envios"] == 10500
+
+
+def test_promover_con_modelos_copia_y_configura_solo_predecir(tmp_path):
+    run = _run_falso(tmp_path)
+    (run / "modelos").mkdir()
+    for n in ("s1", "s2"):
+        (run / "modelos" / f"{n}.txt").write_text(f"modelo {n}", encoding="utf-8")
+    destino = promover(run, 11000, destino=tmp_path / "d", con_modelos=True)
+    assert sorted(p.name for p in (destino / "modelos").glob("*.txt")) == [
+        "s1.txt",
+        "s2.txt",
+    ]
+    cfg = yaml.safe_load((destino / "config.yaml").read_text(encoding="utf-8"))
+    assert cfg["final"]["modelos_desde"].endswith("/modelos")
+    assert json.loads((destino / "entrega.json").read_text())["modelos_incluidos"] == 2
+    cfgmod.desde_dict(cfg)
+    # volver a promover sin modelos limpia los anteriores y vuelve al modo entrenar
+    promover(run, 11000, destino=destino)
+    assert not (destino / "modelos").exists()
+    assert (
+        yaml.safe_load((destino / "config.yaml").read_text())["final"]["modelos_desde"]
+        is None
+    )
+
+
+def test_promover_con_modelos_exige_que_el_run_los_tenga(tmp_path):
+    with pytest.raises(ValueError, match="modelos guardados"):
+        promover(_run_falso(tmp_path), 11000, destino=tmp_path / "d", con_modelos=True)
+    assert not (tmp_path / "d" / "config.yaml").exists()
+
+
+def test_cargar_modelo_valida_existencia_y_cantidad_de_features(tmp_path):
+    import lightgbm as lgb
+    import numpy as np
+
+    from competencia_1.pipeline.final import _cargar_modelo
+
+    with pytest.raises(FileNotFoundError, match="falta el modelo"):
+        _cargar_modelo(tmp_path / "no.txt", 3)
+    rng = np.random.default_rng(0)
+    X = rng.normal(size=(200, 3))
+    y = (X[:, 0] > 0).astype(int)
+    b = lgb.train({"objective": "binary", "verbosity": -1}, lgb.Dataset(X, y), 5)
+    ruta = tmp_path / "m.txt"
+    b.save_model(str(ruta))
+    assert _cargar_modelo(ruta, 3).num_feature() == 3
+    with pytest.raises(ValueError, match="features"):
+        _cargar_modelo(ruta, 4)
+    # un modelo guardado y vuelto a cargar predice exactamente igual
+    assert np.array_equal(_cargar_modelo(ruta, 3).predict(X), b.predict(X))

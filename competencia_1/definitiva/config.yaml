@@ -152,6 +152,7 @@ final:
   promedio: true
   reescalar_min_data: false
   params_ignorar_fe_hash: true
+  modelos_desde: competencia_1/definitiva/modelos
 salida:
   envios:
   - 10500

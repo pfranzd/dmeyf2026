@@ -3,8 +3,12 @@
     # Elegir qué run es la entrega y con cuántos envíos (genera competencia_1/definitiva/):
     python -m competencia_1.entrega promover --run work/competencia_1/runs/<run_id> --envios 11000
 
-    # Reproducirla desde cero en un directorio aparte (work/entrega) y comparar el sha256:
+    # Reproducirla en un directorio aparte (work/entrega) y comparar el sha256. Si la entrega
+    # incluye modelos entrenados (promover --con-modelos) solo predice (~12 min):
     python -m competencia_1.entrega reproducir
+
+    # Reentrenar todo desde cero aunque haya modelos guardados (~80 min):
+    python -m competencia_1.entrega reproducir --entrenar
 
 `reproducir` usa DMEYF_WORK=work/entrega por defecto para no tocar la caché de los experimentos;
 exportar DMEYF_WORK antes (p. ej. un disco montado en GCP) para cambiarlo.
@@ -52,12 +56,22 @@ def main(argv: list[str] | None = None) -> int:
         "--modelo", default="promedio", help="promedio (default) o s<semilla>"
     )
     p.add_argument(
+        "--con-modelos",
+        action="store_true",
+        help="copia los modelos entrenados a definitiva/modelos (~140 MB) para solo predecir",
+    )
+    p.add_argument(
         "--csv-procesado",
         action="store_true",
         help="usar datasets/processed/competencia_01.csv en vez de reconstruir desde el crudo",
     )
 
     r = sub.add_parser("reproducir", help="corre la entrega y compara el sha256")
+    r.add_argument(
+        "--entrenar",
+        action="store_true",
+        help="reentrena todo aunque la entrega traiga modelos ya entrenados",
+    )
     r.add_argument(
         "--limpiar", action="store_true", help="borra el directorio de trabajo antes"
     )
@@ -69,9 +83,10 @@ def main(argv: list[str] | None = None) -> int:
             args.envios,
             args.modelo,
             desde_crudo=not args.csv_procesado,
+            con_modelos=args.con_modelos,
         )
         return 0
-    return 0 if reproducir(DIR_DEFINITIVA, args.limpiar) else 1
+    return 0 if reproducir(DIR_DEFINITIVA, args.limpiar, args.entrenar) else 1
 
 
 if __name__ == "__main__":
