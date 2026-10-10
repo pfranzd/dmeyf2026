@@ -114,7 +114,8 @@ def promover(
         json.dumps(
             {
                 "nota": f"hiperparámetros finales (ya escalados) del run {run_dir.name}",
-                "params": params,
+                # lista [{etiqueta, params}] => ensamble de varios conjuntos (resolver_conjunto)
+                ("ensamble" if isinstance(params, list) else "params"): params,
             },
             indent=2,
         )

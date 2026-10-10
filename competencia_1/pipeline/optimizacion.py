@@ -3,8 +3,11 @@
 Alineado con la metodología de la materia, no un Optuna genérico:
 - Cada trial se evalúa en los folds temporales del config (train en meses anteriores,
   validación en el mes que está `gap` meses después): nada de CV dentro del mismo mes.
-- El objetivo es la ganancia meseta sobre BAJA+2 (no AUC), promediada entre folds y
-  normalizada por la cantidad de clientes de cada mes.
+- El objetivo (`optuna.objetivo`) es por defecto la ganancia meseta sobre BAJA+2,
+  promediada entre folds y normalizada por la cantidad de clientes de cada mes. También
+  puede ser el AUC sobre BAJA+2 (media simple entre folds).
+- Con `optuna.pruning` el primer fold decide si el trial sigue (MedianPruner): los folds
+  deben ir de menor a mayor costo.
 - `num_iterations` es un hiperparámetro más: no hay early stopping sobre el mes de
   validación, que lo filtraría hacia el modelo.
 - Todos los trials usan la misma semilla de LightGBM, así comparan hiperparámetros y
@@ -117,12 +120,17 @@ def sugerir(trial: optuna.Trial, espacio: dict) -> dict:
     return params
 
 
-def valor_objetivo(resultados: list[dict]) -> float:
-    """Media de la ganancia meseta entre folds, llevada a un mes de tamaño promedio.
+def valor_objetivo(resultados: list[dict], objetivo: str = "ganancia") -> float:
+    """Valor que maximiza Optuna a partir del resumen de cada fold.
 
-    La ganancia crece con la cantidad de clientes del mes: se normaliza por n para que
-    ningún fold pese más solo por tener más clientes.
+    `ganancia`: media de la ganancia meseta entre folds, llevada a un mes de tamaño
+    promedio. La ganancia crece con la cantidad de clientes del mes: se normaliza por n
+    para que ningún fold pese más solo por tener más clientes. `auc`: media simple.
     """
+    if objetivo == "auc":
+        return float(np.mean([r["auc"] for r in resultados]))
+    if objetivo != "ganancia":
+        raise ValueError(f"objetivo inválido: {objetivo}")
     n_ref = np.mean([r["n"] for r in resultados])
     return float(np.mean([r["ganancia_meseta"] * n_ref / r["n"] for r in resultados]))
 
@@ -171,10 +179,26 @@ def abrir_estudio(
         storage=f"sqlite:///{storage.as_posix()}",
         direction="maximize",
         load_if_exists=True,
+        pruner=optuna.pruners.MedianPruner(n_startup_trials=10)
+        if cfg.optuna.pruning
+        else optuna.pruners.NopPruner(),
     )
-    hechos = sum(t.state == optuna.trial.TrialState.COMPLETE for t in study.trials)
+    # los podados cuentan: son trials ya gastados del presupuesto
+    terminados = (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED)
+    hechos = sum(t.state in terminados for t in study.trials)
     study.sampler = optuna.samplers.TPESampler(seed=cfg.semilla_maestra + hechos)
     return study, hechos
+
+
+def _guardar_attrs(trial: optuna.Trial, resultados: list[dict]) -> None:
+    trial.set_user_attr(
+        "ganancia_meseta_folds", [r["ganancia_meseta"] for r in resultados]
+    )
+    trial.set_user_attr(
+        "envios_optimos_folds", [r["envios_optimos"] for r in resultados]
+    )
+    trial.set_user_attr("auc_folds", [r["auc"] for r in resultados])
+    trial.set_user_attr("n_valid_folds", [r["n"] for r in resultados])
 
 
 def correr_estudio(
@@ -192,25 +216,39 @@ def correr_estudio(
         )
         return
 
+    objetivo_cfg = cfg.optuna.objetivo
+    fmt = "%.4f" if objetivo_cfg == "auc" else "%.0f"
+
     def objetivo(trial: optuna.Trial) -> float:
         params = sugerir(trial, cfg.optuna.espacio)
         completos = {
             **cfg.lgbm.manual,
             **params,
         }  # num_iterations fuera del espacio -> manual
-        resultados = evaluar_trial(cfg, preps, completos, cfg.semilla_maestra)
-        trial.set_user_attr(
-            "ganancia_meseta_folds", [r["ganancia_meseta"] for r in resultados]
-        )
-        trial.set_user_attr(
-            "envios_optimos_folds", [r["envios_optimos"] for r in resultados]
-        )
-        trial.set_user_attr("n_valid_folds", [r["n"] for r in resultados])
-        return valor_objetivo(resultados)
+        p, n_iter = params_lgbm(cfg, completos, cfg.semilla_maestra)
+        resultados: list[dict] = []
+        for i, prep in enumerate(preps):
+            score = predecir(entrenar_dataset(prep.dtrain, p, n_iter), prep.X_valid)
+            resultados += resumir_folds(cfg, [prep], [score])
+            if cfg.optuna.pruning and i < len(preps) - 1:
+                trial.report(valor_objetivo(resultados, objetivo_cfg), i)
+                if trial.should_prune():
+                    _guardar_attrs(trial, resultados)
+                    raise optuna.TrialPruned
+        _guardar_attrs(trial, resultados)
+        return valor_objetivo(resultados, objetivo_cfg)
 
     def reportar(study: optuna.Study, trial: optuna.trial.FrozenTrial) -> None:
+        if trial.state != optuna.trial.TrialState.COMPLETE:
+            log.info(
+                "trial %d: podado tras el primer fold (%s) | %s",
+                trial.number,
+                trial.user_attrs.get("ganancia_meseta_folds"),
+                trial.params,
+            )
+            return
         log.info(
-            "trial %d: valor=%.0f envios=%s | mejor=%.0f (trial %d) | %s",
+            "trial %d: valor=" + fmt + " envios=%s | mejor=" + fmt + " (trial %d) | %s",
             trial.number,
             trial.value,
             trial.user_attrs["envios_optimos_folds"],
@@ -228,6 +266,24 @@ def correr_estudio(
     study.optimize(objetivo, n_trials=restantes, callbacks=[reportar])
 
 
+def cargar_estudio(nombre: str, storage: Path) -> optuna.Study:
+    try:
+        return optuna.load_study(
+            study_name=nombre, storage=f"sqlite:///{storage.as_posix()}"
+        )
+    except KeyError as e:
+        raise FileNotFoundError(
+            f"no existe el estudio '{nombre}' en {storage}: corré antes la etapa 'optuna'"
+        ) from e
+
+
+def top_trials(study: optuna.Study, k: int) -> list[optuna.trial.FrozenTrial]:
+    completos = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+    if not completos:
+        raise ValueError(f"el estudio '{study.study_name}' no tiene trials completos")
+    return sorted(completos, key=lambda t: t.value, reverse=True)[:k]
+
+
 def tabla_trials(study: optuna.Study) -> pl.DataFrame:
     filas = []
     for t in study.trials:
@@ -239,6 +295,7 @@ def tabla_trials(study: optuna.Study) -> pl.DataFrame:
         fila["envios_optimos_folds"] = json.dumps(
             t.user_attrs.get("envios_optimos_folds")
         )
+        fila["auc_folds"] = json.dumps(t.user_attrs.get("auc_folds"))
         filas.append(fila)
     return pl.DataFrame(filas)
 
@@ -260,6 +317,8 @@ def exportar_mejores(
         "n_trials": len(study.trials),
         "params": params,
         "ganancia_meseta_folds": mejor.user_attrs.get("ganancia_meseta_folds"),
+        "auc_folds": mejor.user_attrs.get("auc_folds"),
+        "objetivo": cfg.optuna.objetivo,
         "envios_optimos_folds": mejor.user_attrs.get("envios_optimos_folds"),
         "undersampling": cfg.dataset.undersampling,
         "positivos": cfg.target.positivos,
@@ -308,8 +367,10 @@ def etapa_optuna(cfg: cfgmod.Config, run: Run) -> None:
         },
     )
     log.info(
-        "mejor trial %d: %.0f | para usarlo: final.params_desde=optuna:%s (o optuna:auto)",
+        "mejor trial %d: %s | para usarlo: final.params_desde=optuna:%s (o optuna:auto)",
         info["trial"],
-        info["valor"],
+        f"{info['valor']:.4f}"
+        if cfg.optuna.objetivo == "auc"
+        else f"{info['valor']:.0f}",
         nombre,
     )

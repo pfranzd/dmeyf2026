@@ -33,6 +33,13 @@ La versión **definitiva** que debe reproducirse no se corre desde acá: está c
 | `e028` (screening, sin config propia) | `num_iterations` 5000 / 7000 y lr/2 sobre los params de e023, en la validación de 2 folds: 356,1 / 354,0 / 356,9 M, sin mejora |
 | `e029_fe_deltas_todos_us03`, `e030_…_final` | e022 con undersampling 0,3; e030 es el final al estilo e023 (`e030_params.json`) |
 | `e031_fe_deltas_todos_fold2m` | e022 con un solo fold de 2 meses de train (202103–202104 → valid 202106); no se corrió |
+| `e032_expansiva_auc_topk` | Ventana expansiva (A: 202103→202105; B: 202103–202104→202106), objetivo AUC con pruning, FE curado completo con ventanas de 2 meses, undersampling 0,25; final = ensamble de los 12 mejores trials × 2 semillas con 202103–202106 |
+
+Opciones de config agregadas para e032 (todas con un default que no cambia los experimentos previos):
+`periodos.folds` (folds explícitos), `optuna.objetivo: ganancia|auc`, `optuna.pruning`,
+`final.params_desde: top:<k>` (ensamble de los k mejores trials; los modelos sueltos quedan en
+`probas/ensamble/` y el CSV sale del promedio) y `final.reescalar_min_data: filas`
+(min_data × filas del final / filas del train del último fold).
 
 Archivos auxiliares: `e012_excluir.txt` (columnas a excluir), `e019_params.json`,
 `e023_params.json` y `e030_params.json` (hiperparámetros con `min_data_in_leaf` ya multiplicado por 3).

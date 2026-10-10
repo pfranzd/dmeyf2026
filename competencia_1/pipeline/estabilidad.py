@@ -27,9 +27,11 @@ from competencia_1.pipeline.features import columnas_seleccionadas, construir_fe
 from competencia_1.pipeline.modelo import PARAMS_DIR, nombre_estudio
 from competencia_1.pipeline.optimizacion import (
     DB_PATH,
+    cargar_estudio,
     preparar_folds,
     puntuar_folds,
     resumir_folds,
+    top_trials,
     valor_objetivo,
 )
 from competencia_1.pipeline.semillas import generar_semillas
@@ -37,24 +39,6 @@ from competencia_1.pipeline.simulacion import simular_public_private
 from competencia_1.pipeline.tracking import Run
 
 log = logging.getLogger("competencia_1.estabilidad")
-
-
-def cargar_estudio(nombre: str, storage: Path) -> optuna.Study:
-    try:
-        return optuna.load_study(
-            study_name=nombre, storage=f"sqlite:///{storage.as_posix()}"
-        )
-    except KeyError as e:
-        raise FileNotFoundError(
-            f"no existe el estudio '{nombre}' en {storage}: corré antes la etapa 'optuna'"
-        ) from e
-
-
-def top_trials(study: optuna.Study, k: int) -> list[optuna.trial.FrozenTrial]:
-    completos = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
-    if not completos:
-        raise ValueError(f"el estudio '{study.study_name}' no tiene trials completos")
-    return sorted(completos, key=lambda t: t.value, reverse=True)[:k]
 
 
 def estadisticos(valores: list[float]) -> dict:
@@ -126,7 +110,7 @@ def evaluar_candidatos(
         valores, envios = [], []
         for seed in semillas:
             res = resumir_folds(cfg, preps0, por_semilla[seed])
-            valores.append(valor_objetivo(res))
+            valores.append(valor_objetivo(res, cfg.optuna.objetivo))
             envios.append([r["envios_optimos"] for r in res])
         n_folds = len(preps0)
         promedio = [
@@ -135,7 +119,7 @@ def evaluar_candidatos(
         ]
         ensembles[t.number] = promedio
         res_ens = resumir_folds(cfg, preps0, promedio)
-        valor_ens = valor_objetivo(res_ens)
+        valor_ens = valor_objetivo(res_ens, cfg.optuna.objetivo)
         est = estadisticos(valores)
         resumen[t.number] = {
             "trial": t.number,
