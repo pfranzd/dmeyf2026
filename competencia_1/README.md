@@ -65,6 +65,30 @@ Se elige un run ya ejecutado (por ejemplo desde `work/competencia_1/runs.csv`) y
 no tiene un CSV con ese corte de envíos. Anotar el puntaje público en `entrega.json`
 (`resultado_publico`) y en la bitácora de [`configs/exp/README.md`](configs/exp/README.md).
 
+### Publicar la entrega oficial (repo de entregas)
+
+La cátedra pide un link a GitHub con una carpeta que permita replicar exactamente el CSV
+entregado. Para eso hay un repositorio aparte, [`dmeyf2026-entregas`](https://github.com/pfranzd/dmeyf2026-entregas)
+(clonado en `../dmeyf2026-entregas`), que contiene solo lo entregable: código, entorno con
+versiones fijas (`requirements-lock.txt`), hiperparámetros, modelos entrenados y la optimización
+de Optuna que los originó. Nunca se suben los CSV de la competencia.
+
+Elegir qué experimento es el oficial es un solo comando (o decirle a Claude "pasá <experimento> a
+oficial": la skill `publicar-entrega` lo hace con todas las validaciones):
+
+```powershell
+python -m competencia_1.publicar --run work/competencia_1/runs/<run_id> --envios 10500 `
+  --crudo-local datasets/raw/competencia_01_crudo.csv
+```
+
+Congela el run (`promover`), exporta la carpeta, corre la entrega exportada en un venv nuevo
+instalado desde el lock y exige que el CSV sea **idéntico** (sha256 y bytes) al del run; recién
+entonces hace commit y `push` y verifica con `ls-remote` que el remoto quedó en ese commit. Si
+algo falla no se sube nada. `--validar entrenar|completo` valida reentrenando / rehaciendo
+también Optuna; `--inicializar` es solo para el primer commit del repo vacío.
+La entrega exportada se replica con `bash reproducir.sh [predecir|entrenar|completo]`
+(`predecir` ~15 min, `entrenar` ~80 min, `completo` ~2,5 h) o con `entrega.ipynb`.
+
 ## Estructura
 
 ```

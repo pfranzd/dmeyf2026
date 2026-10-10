@@ -16,6 +16,7 @@ Alineado con la metodología de la materia, no un Optuna genérico:
 
 import json
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,7 +42,14 @@ from competencia_1.pipeline.tracking import Run, ruta_relativa
 
 log = logging.getLogger("competencia_1.optuna")
 
-DB_PATH = cfgmod.RAIZ / "db" / "competencia_1.db"
+
+def _resolver_db() -> Path:
+    """Base de Optuna. DMEYF_DB la cambia (p. ej. work/entrega/db para aislar una reproducción)."""
+    p = Path(os.environ.get("DMEYF_DB") or cfgmod.RAIZ / "db" / "competencia_1.db")
+    return p if p.is_absolute() else cfgmod.RAIZ / p
+
+
+DB_PATH = _resolver_db()
 
 
 @dataclass

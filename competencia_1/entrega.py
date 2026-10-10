@@ -10,6 +10,9 @@
     # Reentrenar todo desde cero aunque haya modelos guardados (~80 min):
     python -m competencia_1.entrega reproducir --entrenar
 
+    # Rehacer TODO, incluida la optimización de hiperparámetros con Optuna (~2,5 h):
+    python -m competencia_1.entrega reproducir --completo
+
 `reproducir` usa DMEYF_WORK=work/entrega por defecto para no tocar la caché de los experimentos;
 exportar DMEYF_WORK antes (p. ej. un disco montado en GCP) para cambiarlo.
 La lógica vive en competencia_1/pipeline/entrega.py.
@@ -24,11 +27,13 @@ from pathlib import Path
 # Debe fijarse antes de importar el pipeline: tracking.WORK se resuelve al importarlo.
 if len(sys.argv) > 1 and sys.argv[1] == "reproducir":
     os.environ.setdefault("DMEYF_WORK", "work/entrega")
+    os.environ.setdefault("DMEYF_DB", "work/entrega/db/competencia_1.db")
 
 from competencia_1.pipeline.entrega import (
     DIR_DEFINITIVA,
     promover,
     reproducir,
+    reproducir_completo,
 )
 
 for _stream in (sys.stdout, sys.stderr):
@@ -73,6 +78,11 @@ def main(argv: list[str] | None = None) -> int:
         help="reentrena todo aunque la entrega traiga modelos ya entrenados",
     )
     r.add_argument(
+        "--completo",
+        action="store_true",
+        help="rehace también la optimización de hiperparámetros (config original del experimento)",
+    )
+    r.add_argument(
         "--limpiar", action="store_true", help="borra el directorio de trabajo antes"
     )
 
@@ -86,7 +96,11 @@ def main(argv: list[str] | None = None) -> int:
             con_modelos=args.con_modelos,
         )
         return 0
-    return 0 if reproducir(DIR_DEFINITIVA, args.limpiar, args.entrenar) else 1
+    if args.completo:
+        ok = reproducir_completo(DIR_DEFINITIVA, args.limpiar)
+    else:
+        ok = reproducir(DIR_DEFINITIVA, args.limpiar, args.entrenar)
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ no depende de configs/exp, de work/ ni de db/ (el estudio de Optuna no hace falt
 import copy
 import json
 import logging
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -73,6 +74,58 @@ def _csv_del_run(
     return ruta, candidatos[ruta]["sha256"]
 
 
+def _referencias_archivo(valor) -> list[str]:
+    """Rutas de los valores `archivo:<ruta>` que aparezcan en cualquier parte de un config."""
+    if isinstance(valor, str):
+        return [valor.removeprefix("archivo:")] if valor.startswith("archivo:") else []
+    if isinstance(valor, dict):
+        valor = list(valor.values())
+    if isinstance(valor, list):
+        return [r for v in valor for r in _referencias_archivo(v)]
+    return []
+
+
+def cadena_config(path: Path) -> list[Path]:
+    """Archivos de los que depende un config de experimento: él, sus `hereda` y los `archivo:`."""
+    vistos: list[Path] = []
+    pendientes = [Path(path).resolve()]
+    while pendientes:
+        p = pendientes.pop()
+        if p in vistos:
+            continue
+        if not p.exists():
+            raise FileNotFoundError(
+                f"el config referencia un archivo que no existe: {p}"
+            )
+        vistos.append(p)
+        if p.suffix not in (".yaml", ".yml"):
+            continue
+        d = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        if d.get("hereda"):
+            pendientes.append((p.parent / d["hereda"]).resolve())
+        for ref in _referencias_archivo(d):
+            r = Path(ref)
+            pendientes.append((r if r.is_absolute() else RAIZ / r).resolve())
+    return sorted(vistos)
+
+
+def _experimento_reproducible(meta: dict, cfg: dict) -> tuple[Path | None, bool]:
+    """(yaml del experimento, ¿se puede rehacer de punta a punta con ese solo config?).
+
+    Es automático si el experimento optimiza en su propia corrida y toma los hiperparámetros
+    de su propio estudio (no de otra corrida): así `reproducir --completo` rehace todo.
+    """
+    nombre = f"{meta.get('experimento')}.yaml"
+    yaml_exp = RAIZ / "competencia_1" / "configs" / "exp" / nombre
+    if not yaml_exp.exists():
+        return None, False
+    desde = cfg.get("final", {}).get("params_desde", "")
+    propio = bool(cfg.get("etapas", {}).get("optuna")) and bool(
+        re.fullmatch(r"(optuna|estable):auto|top:\d+", desde)
+    )
+    return yaml_exp, propio
+
+
 def promover(
     run_dir: Path,
     envios: int,
@@ -101,6 +154,7 @@ def promover(
     if not params:
         raise ValueError("meta.json no tiene modelo.params_final")
     csv_ruta, csv_sha = _csv_del_run(meta, envios, modelo, run_dir)
+    yaml_exp, completo_auto = _experimento_reproducible(meta, cfg)
 
     # Reconstruye desde el crudo solo si se pide: la base debe dar el mismo contenido
     # (se verificó para esta entrega); si no, se usa el CSV procesado local.
@@ -176,6 +230,8 @@ def promover(
         "versiones": meta.get("versiones"),
         "resultado_publico": resultado_publico,
         "modelos_incluidos": len(archivos) if con_modelos else 0,
+        "config_experimento": ruta_relativa(yaml_exp) if yaml_exp else None,
+        "completo_automatico": completo_auto,
     }
     (destino / "entrega.json").write_text(
         json.dumps(info, indent=2, ensure_ascii=False) + "\n",
@@ -191,29 +247,15 @@ def promover(
     return destino
 
 
-def reproducir(
-    destino: Path = DIR_DEFINITIVA, limpiar: bool = False, entrenar: bool = False
-) -> bool:
-    """Corre config.yaml y compara el sha256 del CSV con entrega.json. True si coincide.
-
-    Si la entrega incluye modelos entrenados, solo predice con ellos; `entrenar=True` los
-    ignora y reentrena todo desde cero.
-    """
+def _correr_y_comparar(args: list[str], info: dict, limpiar: bool) -> bool:
+    """Corre el pipeline con `args` y compara el sha256 del CSV con `info`."""
     # Import diferido: main arrastra todo el pipeline y WORK ya quedó fijado por el entorno.
     from competencia_1 import main as main_mod
     from competencia_1.pipeline.tracking import RUNS_DIR, WORK
 
-    info_p = destino / "entrega.json"
-    if not info_p.exists():
-        raise FileNotFoundError(f"no existe {info_p}: corré primero `promover`")
-    info = json.loads(info_p.read_text(encoding="utf-8"))
-
     if limpiar and WORK.exists():
         shutil.rmtree(WORK)
     antes = {p.name for p in RUNS_DIR.glob("*")} if RUNS_DIR.exists() else set()
-    args = ["--config", str(destino / "config.yaml")]
-    if entrenar:
-        args += ["--set", "final.modelos_desde=null"]
     main_mod.main(args)
     nuevos = sorted({p.name for p in RUNS_DIR.glob("*")} - antes)
     if not nuevos:
@@ -229,3 +271,51 @@ def reproducir(
     log.info("sha256 obtenido: %s", obtenido)
     log.info("RESULTADO: %s", "OK, coincide" if ok else "DIFIERE")
     return ok
+
+
+def _info(destino: Path) -> dict:
+    info_p = destino / "entrega.json"
+    if not info_p.exists():
+        raise FileNotFoundError(f"no existe {info_p}: corré primero `promover`")
+    return json.loads(info_p.read_text(encoding="utf-8"))
+
+
+def reproducir(
+    destino: Path = DIR_DEFINITIVA, limpiar: bool = False, entrenar: bool = False
+) -> bool:
+    """Corre config.yaml y compara el sha256 del CSV con entrega.json. True si coincide.
+
+    Si la entrega incluye modelos entrenados, solo predice con ellos; `entrenar=True` los
+    ignora y reentrena todo desde cero.
+    """
+    info = _info(destino)
+    args = ["--config", str(destino / "config.yaml")]
+    if entrenar:
+        args += ["--set", "final.modelos_desde=null"]
+    return _correr_y_comparar(args, info, limpiar)
+
+
+def reproducir_completo(destino: Path = DIR_DEFINITIVA, limpiar: bool = False) -> bool:
+    """Rehace TODO: Optuna, selección de los mejores trials, modelos finales y CSV.
+
+    Corre el config original del experimento (el que dio origen a los hiperparámetros) con un
+    estudio de Optuna nuevo (DMEYF_DB aislado) y el target reconstruido desde el crudo, y
+    compara el sha256 con la entrega. Solo es automático si el experimento es autocontenido.
+    """
+    info = _info(destino)
+    if not info.get("completo_automatico"):
+        raise ValueError(
+            "esta entrega no se puede rehacer de punta a punta con un solo config "
+            "(sus hiperparámetros vienen de otra corrida): ver los pasos en el README"
+        )
+    config = Path(info["config_experimento"])
+    config = config if config.is_absolute() else RAIZ / config
+    args = [
+        "--config",
+        str(config),
+        "--set",
+        f"salida.envios=[{info['envios']}]",
+        "--set",
+        "datos.reconstruir_target=true",
+    ]
+    return _correr_y_comparar(args, info, limpiar)
