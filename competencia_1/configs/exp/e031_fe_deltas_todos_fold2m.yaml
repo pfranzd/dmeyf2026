@@ -1,0 +1,23 @@
+# e022 con un unico fold de 2 meses de train: train 202103+202104, valid 202106 (gap 2).
+# Hipotesis: un train de 2 meses se parece mas al final (3 meses) que los folds de 1 mes de e022.
+# Limitacion: los folds de periodos son uniformes (n_meses_train igual en todos) y la base solo tiene
+# target desde 202103, asi que el fold de valid 202105 con 2 meses de train no se puede armar
+# (necesitaria 202102). Por eso queda 1 solo fold y se pierde la validacion en 202105.
+# Misma seccion fe que e022 -> mismo fe_hash: reutiliza la cache de features (no reconstruye).
+# Estudio de Optuna nuevo (cambian los folds). Para comparar con e022 usar solo valid 202106
+# (en e022 el fold de 202106 dio ~446 M con train de 1 mes), no la media de dos folds.
+# Paso 1 de 2: Optuna + estabilidad + validacion. El final iria en un e03x aparte.
+hereda: e022_fe_deltas_todos.yaml
+experimento: e031_fe_deltas_todos_fold2m
+
+periodos:
+  n_meses_train: 2
+  n_folds: 1
+  meses_final: [202104, 202105, 202106]   # el final sigue con 3 meses, como e023
+
+etapas:
+  optuna: true
+  estabilidad: true
+  validacion: true
+  final: false
+  salida: false

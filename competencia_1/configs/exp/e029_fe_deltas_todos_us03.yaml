@@ -1,0 +1,12 @@
+# e022 (orig + deltas 1 y 2 sobre todas las variables, base del mejor publico e023) con
+# undersampling 0.3 en vez de 0.1: Optuna ve ~3x mas CONTINUA (~52k filas por fold en vez de
+# ~18k; los positivos se conservan todos) y el salto al final sin undersampling es x3.3, no x10.
+# El undersampling entra en el nombre del estudio -> estudio nuevo: hay que re-tunear.
+# Mismas features (reusa la cache 39972bee3ce9, no reconstruye), folds y espacio que e022:
+# comparable contra su mediana de 357.65 M.
+# Paso 1 de 2: Optuna + estabilidad + validacion. El final va en e030 (estilo e023).
+hereda: e022_fe_deltas_todos.yaml
+experimento: e029_fe_deltas_todos_us03
+
+dataset:
+  undersampling: 0.3
