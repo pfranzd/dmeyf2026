@@ -110,3 +110,20 @@ def cargar_particion(
         y=y,
         es_baja2=es_baja2,
     )
+
+
+def contar_filas(parquet: Path, meses: list[int], undersampling: float = 1.0) -> float:
+    """Filas esperadas de `cargar_particion` para esos meses (sin cargar las features).
+
+    Con undersampling se esperan todas las BAJA+1/BAJA+2 y esa fracción de CONTINUA.
+    """
+    df = (
+        pl.scan_parquet(parquet)
+        .filter(pl.col("foto_mes").is_in(meses))
+        .select("clase_ternaria")
+        .collect()
+    )
+    if df.height == 0:
+        raise ValueError(f"no hay filas para los meses {meses}")
+    n_baja = int(df["clase_ternaria"].is_in(CLASES_BAJA).sum())
+    return n_baja + undersampling * (df.height - n_baja)

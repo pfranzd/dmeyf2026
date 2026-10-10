@@ -5,8 +5,20 @@ acá solo se arma el resumen que consumen validación, Optuna y los logs.
 """
 
 import numpy as np
+import polars as pl
 
 from dmeyf.metrics import curva_ganancia, ganancia_meseta
+
+
+def auc(es_baja2: np.ndarray, score: np.ndarray) -> float:
+    """AUC (Mann-Whitney con rangos promedio: los empates cuentan 0,5) de BAJA+2 contra el resto."""
+    y = np.asarray(es_baja2, dtype=bool)
+    n_pos = int(y.sum())
+    n_neg = len(y) - n_pos
+    if n_pos == 0 or n_neg == 0:
+        raise ValueError("AUC indefinido: falta una de las dos clases en el mes")
+    rangos = pl.Series(np.asarray(score, dtype=float)).rank("average").to_numpy()
+    return float((rangos[y].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg))
 
 
 def resumir_scores(es_baja2: np.ndarray, score: np.ndarray, ventana: int) -> dict:
@@ -17,6 +29,7 @@ def resumir_scores(es_baja2: np.ndarray, score: np.ndarray, ventana: int) -> dic
     return {
         "n": len(curva),
         "n_baja2": int(es_baja2.sum()),
+        "auc": auc(es_baja2, score),
         "ganancia_meseta": meseta,
         "envios_optimos": envios_meseta,
         "ganancia_max_cruda": int(curva[i_max]),

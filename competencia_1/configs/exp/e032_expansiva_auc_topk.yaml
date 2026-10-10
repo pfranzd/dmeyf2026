@@ -1,0 +1,55 @@
+# Ventana expansiva + AUC + ensamble de los top-k trials.
+#   Split A: train [202103]          -> valid 202105   (gap 2: 202103 + 2 = 202105)
+#   Split B: train [202103, 202104]  -> valid 202106
+# Con gap 1 (train hasta 202104 -> valid 202105) la etiqueta de 202104 miraria 202105 y 202106,
+# y en produccion el ultimo mes con target (202106) esta a 2 meses del target (202108): el pipeline
+# exige gap >= 2 y la validacion refleja el escenario real.
+# Objetivo de Optuna: AUC (sobre BAJA+2) promedio de los 2 splits. El split A va primero (el mas
+# barato): si queda bajo la mediana de los trials previos, el trial se poda sin entrenar el B.
+# FE: todas las familias sobre los campos curados mirando como maximo 2 meses atras (lags 1-2,
+# deltas 1-2, ventanas y tendencia de 3 puntos t, t-1, t-2). En 202103 todo queda NULL.
+# Cambia la seccion fe -> fe_hash nuevo -> la etapa features RECONSTRUYE (~10 min, ~10 GB).
+# Final: ensamble de los 12 mejores trials x 2 semillas (24 modelos) entrenados con 202103-202106
+# SIN undersampling; min_data_in_leaf se escala por el cociente de filas final / train del fold B.
+# Las probabilidades se promedian y de ahi sale el CSV.
+hereda: ../base.yaml
+experimento: e032_expansiva_auc_topk
+
+periodos:
+  folds:
+    - {train: [202103], valid: 202105}
+    - {train: [202103, 202104], valid: 202106}
+  meses_final: [202103, 202104, 202105, 202106]
+
+fe:
+  ventanas: {activo: true, tamanio: 2, stats: [avg, max, min, std], ratio_avg: true}
+  tendencia: {activo: true, tamanio: 2}
+
+dataset:
+  undersampling: 0.25
+
+optuna:
+  n_trials: 60
+  objetivo: auc
+  pruning: true
+  espacio:
+    learning_rate: {tipo: float, low: 0.005, high: 0.05, log: true}
+    feature_fraction: {tipo: float, low: 0.05, high: 0.5, log: true}
+    num_leaves: {tipo: int, low: 8, high: 256, log: true}
+    min_data_in_leaf: {tipo: int, low: 5, high: 2000, log: true}
+    num_iterations: {tipo: int, low: 150, high: 1500, log: false}
+
+final:
+  params_desde: top:12
+  n_semillas: 2
+  reescalar_min_data: filas
+
+salida:
+  envios: [10000, 11000]
+
+etapas:
+  optuna: true
+  estabilidad: false
+  validacion: false
+  final: true
+  salida: true

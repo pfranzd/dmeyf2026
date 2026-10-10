@@ -10,6 +10,8 @@ periodos:
   n_meses_train: 1
   n_folds: 2                       # valid = T-gap, T-gap-1, ...
   meses_final: null                # override explícito; null = derivado
+  folds: null                      # lista explícita [{train: [AAAAMM, ...], valid: AAAAMM}, ...];
+                                   # null = derivados con n_meses_train/n_folds
 
 target:
   positivos: [BAJA+1, BAJA+2]      # clases con y=1 al entrenar (ganancia: solo BAJA+2)
@@ -73,6 +75,8 @@ optuna:
   n_trials: 50
   study_name: auto
   ventana_meseta: 401
+  objetivo: ganancia               # ganancia (meseta, sobre BAJA+2) | auc (sobre BAJA+2)
+  pruning: false                   # true: MedianPruner por fold (necesita >= 2 folds)
   espacio:
     learning_rate: {tipo: float, low: 0.005, high: 0.3, log: true}
     num_leaves: {tipo: int, low: 8, high: 2048, log: true}
@@ -93,11 +97,11 @@ ablacion:                          # compara conjuntos de features (pareado por 
     completo: {solo_bloques: null, excluir_bloques: [], excluir_features: []}
 
 final:
-  params_desde: manual             # manual | optuna:<study|auto> | estable:<study|auto> | archivo:<path>
+  params_desde: manual             # manual | optuna:|estable:<study|auto> | top:<k> (ensamble) | archivo:<path>
   n_semillas: 1                    # 1..20
   semillas: null                   # lista explícita (anula n_semillas)
   promedio: true
-  reescalar_min_data: true
+  reescalar_min_data: true         # true: min_data / undersampling | false | "filas": por filas de train
   params_ignorar_fe_hash: false    # true: usar params optimizados con OTRAS features (solo experimentos)
 
 salida:

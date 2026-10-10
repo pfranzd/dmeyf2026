@@ -27,6 +27,9 @@ class Periodos:
     n_meses_train: int
     n_folds: int
     meses_final: list[int] | None  # override explícito
+    folds: (
+        list[dict] | None
+    )  # [{train: [AAAAMM, ...], valid: AAAAMM}]; null = derivados
 
 
 @dataclass(frozen=True)
@@ -127,6 +130,8 @@ class OptunaCfg:
     study_name: str  # "auto" -> derivado de experimento + fe_hash + folds
     ventana_meseta: int
     espacio: dict
+    objetivo: str  # ganancia (meseta, la de negocio) | auc (sobre BAJA+2)
+    pruning: bool  # corta el trial si el primer fold queda bajo la mediana
 
 
 @dataclass(frozen=True)
@@ -159,7 +164,7 @@ class Final:
     n_semillas: int
     semillas: list[int] | None
     promedio: bool
-    reescalar_min_data: bool
+    reescalar_min_data: bool | str  # true | false | "filas" (por filas de train)
     params_ignorar_fe_hash: (
         bool  # usar params optimizados con otras features (con warning)
     )
@@ -203,6 +208,23 @@ class Config:
 
 
 # ---------------------------------------------------------------- carga
+
+# Claves agregadas después de congelar configs viejos (config_resuelta.yaml de runs,
+# definitiva/config.yaml). Si faltan se completan con el valor que reproduce el comportamiento
+# anterior. Solo estas: cualquier otra clave faltante o desconocida sigue siendo error.
+CLAVES_POSTERIORES = {
+    "periodos": {"folds": None},
+    "optuna": {"objetivo": "ganancia", "pruning": False},
+}
+
+
+def completar_claves_posteriores(d: dict) -> dict:
+    d = copy.deepcopy(d)
+    for seccion, claves in CLAVES_POSTERIORES.items():
+        if isinstance(d.get(seccion), dict):
+            for k, v in claves.items():
+                d[seccion].setdefault(k, v)
+    return d
 
 
 def _deep_merge(base: dict, extra: dict) -> dict:
@@ -277,13 +299,16 @@ def cargar_config(
     path: Path, overrides: list[str] | None = None
 ) -> tuple[Config, dict]:
     """Devuelve (Config validada, dict resuelto) listo para congelar a YAML."""
-    d = aplicar_overrides(cargar_dict(path), overrides or [])
+    d = aplicar_overrides(
+        completar_claves_posteriores(cargar_dict(path)), overrides or []
+    )
     cfg = _construir(Config, d)
     validar(cfg)
     return cfg, d
 
 
 def desde_dict(d: dict) -> Config:
+    d = completar_claves_posteriores(d)
     cfg = _construir(Config, d)
     validar(cfg)
     return cfg
@@ -294,6 +319,11 @@ def desde_dict(d: dict) -> Config:
 
 def folds(cfg: Config) -> list[periodos.Fold]:
     p = cfg.periodos
+    if p.folds is not None:
+        return [
+            periodos.Fold(train=tuple(sorted(f["train"])), valid=int(f["valid"]))
+            for f in p.folds
+        ]
     return periodos.derivar_folds(p.target, p.gap, p.n_meses_train, p.n_folds)
 
 
@@ -328,6 +358,19 @@ def validar(cfg: Config) -> None:
         raise ValueError(f"periodos.gap={p.gap}: el gap mínimo es 2 meses")
     if p.n_meses_train < 1 or p.n_folds < 1:
         raise ValueError("periodos.n_meses_train y n_folds deben ser >= 1")
+    if p.folds is not None:
+        if not p.folds:
+            raise ValueError("periodos.folds no puede ser una lista vacía")
+        for f in p.folds:
+            if (
+                not isinstance(f, dict)
+                or set(f) != {"train", "valid"}
+                or not f["train"]
+                or not isinstance(f["train"], list)
+            ):
+                raise ValueError(
+                    f"periodos.folds: cada fold es {{train: [AAAAMM, ...], valid: AAAAMM}}: {f!r}"
+                )
     if not 190001 <= p.target <= 299912 or not 1 <= p.target % 100 <= 12:
         raise ValueError(f"periodos.target inválido: {p.target}")
     for f in folds(cfg):
@@ -357,8 +400,14 @@ def validar(cfg: Config) -> None:
         for x in cfg.final.semillas:
             validar_semilla_curso(x, "final.semillas")
     fp = cfg.final.params_desde
-    if fp != "manual" and not fp.startswith(("optuna:", "estable:", "archivo:")):
+    if fp != "manual" and not fp.startswith(
+        ("optuna:", "estable:", "archivo:", "top:")
+    ):
         raise ValueError(f"final.params_desde inválido: {fp}")
+    if fp.startswith("top:") and not (fp[4:].isdigit() and int(fp[4:]) >= 1):
+        raise ValueError(f"final.params_desde={fp}: se espera top:<k> con k >= 1")
+    if cfg.final.reescalar_min_data not in (True, False, "filas"):
+        raise ValueError("final.reescalar_min_data debe ser true, false o 'filas'")
     e = cfg.estabilidad
     if e.top_k < 1 or not 1 <= e.n_semillas <= 20 or e.n_simulaciones < 1:
         raise ValueError(
@@ -376,6 +425,8 @@ def validar(cfg: Config) -> None:
         )
     if cfg.optuna.n_trials < 1:
         raise ValueError("optuna.n_trials debe ser >= 1")
+    if cfg.optuna.objetivo not in ("ganancia", "auc"):
+        raise ValueError(f"optuna.objetivo inválido: {cfg.optuna.objetivo}")
     for nombre, esp in cfg.optuna.espacio.items():
         if esp.get("tipo") not in ("int", "float"):
             raise ValueError(f"optuna.espacio.{nombre}: tipo debe ser int o float")

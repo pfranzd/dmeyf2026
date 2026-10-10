@@ -117,3 +117,29 @@ def test_dmeyf_work_cambia_la_carpeta_de_salidas(tmp_path):
         check=True,
     ).stdout.strip()
     assert Path(out) == cfgmod.RAIZ / "work" / "competencia_1"
+
+
+def test_promover_un_ensamble_y_resolverlo_de_vuelta(tmp_path):
+    from competencia_1.pipeline.final import resolver_conjunto
+
+    run = _run_falso(tmp_path)
+    miembros = [
+        {"etiqueta": "t3", "params": {**PARAMS, "num_leaves": 9}},
+        {"etiqueta": "t7", "params": {**PARAMS, "num_leaves": 5}},
+    ]
+    meta_p = run / "meta.json"
+    meta = json.loads(meta_p.read_text())
+    meta["modelo"]["params_final"] = miembros
+    meta_p.write_text(json.dumps(meta), encoding="utf-8")
+
+    destino = promover(run, 11000, destino=tmp_path / "d")
+    guardado = json.loads((destino / "params.json").read_text())
+    assert guardado["ensamble"] == miembros and "params" not in guardado
+    cfg = cfgmod.desde_dict(
+        yaml.safe_load((destino / "config.yaml").read_text(encoding="utf-8"))
+    )
+    # las features se fijan por el mismo config: no se exige el fe_hash del json
+    assert resolver_conjunto(cfg, "cualquier_hash") == [
+        ("t3", miembros[0]["params"]),
+        ("t7", miembros[1]["params"]),
+    ]

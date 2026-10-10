@@ -78,6 +78,14 @@ def escalar_min_data(params: dict, undersampling: float) -> dict:
     return out
 
 
+def escalar_min_data_factor(params: dict, factor: float) -> dict:
+    """Multiplica min_data_in_leaf por `factor` (cociente de filas final / validación)."""
+    out = dict(params)
+    if "min_data_in_leaf" in out and factor != 1:
+        out["min_data_in_leaf"] = max(1, round(out["min_data_in_leaf"] * factor))
+    return out
+
+
 def nombre_estudio(cfg: cfgmod.Config, fe_hash: str) -> str:
     """`<exp>_<fe_hash[:8]>_<hash de lo que invalida los trials>`.
 
@@ -97,6 +105,10 @@ def nombre_estudio(cfg: cfgmod.Config, fe_hash: str) -> str:
         "ventana": cfg.optuna.ventana_meseta,
         "semilla": cfg.semilla_maestra,
     }
+    if (
+        cfg.optuna.objetivo != "ganancia"
+    ):  # solo si cambia: no renombra estudios previos
+        huella["objetivo"] = cfg.optuna.objetivo
     d = cfg.dataset
     if (
         d.excluir_bloques or d.excluir_features
@@ -108,22 +120,8 @@ def nombre_estudio(cfg: cfgmod.Config, fe_hash: str) -> str:
     return f"{cfg.experimento}_{fe_hash[:8]}_{cfgmod.hash_dict(huella, 8)}"
 
 
-def resolver_params(cfg: cfgmod.Config, fe_hash: str) -> dict:
-    """Hiperparámetros según `final.params_desde` (manual | optuna:<study|auto> | estable:<study|auto> | archivo:<path>).
-
-    Los json de Optuna guardan el `fe_hash` con el que se optimizaron: usarlos con
-    otras features es un error, no un warning.
-    """
-    origen = cfg.final.params_desde
-    if origen == "manual":
-        return dict(cfg.lgbm.manual)
-    tipo, _, ref = origen.partition(":")
-    if tipo in ("optuna", "estable"):
-        nombre = nombre_estudio(cfg, fe_hash) if ref == "auto" else ref
-        sufijo = "__estable" if tipo == "estable" else ""
-        path = PARAMS_DIR / f"{nombre}{sufijo}.json"
-    else:
-        path = Path(ref) if Path(ref).is_absolute() else cfgmod.RAIZ / ref
+def cargar_json_params(cfg: cfgmod.Config, path: Path, fe_hash: str) -> dict:
+    """Lee un json de hiperparámetros y verifica que sea de las mismas features."""
     if not path.exists():
         raise FileNotFoundError(f"no existe el archivo de hiperparámetros: {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -135,4 +133,34 @@ def resolver_params(cfg: cfgmod.Config, fe_hash: str) -> dict:
         if not cfg.final.params_ignorar_fe_hash:
             raise ValueError(msg)
         log.warning("%s (se usan igual por final.params_ignorar_fe_hash)", msg)
+    return data
+
+
+def ruta_params(cfg: cfgmod.Config, fe_hash: str) -> Path:
+    """Archivo de hiperparámetros según `final.params_desde` (optuna/estable/archivo)."""
+    tipo, _, ref = cfg.final.params_desde.partition(":")
+    if tipo in ("optuna", "estable"):
+        nombre = nombre_estudio(cfg, fe_hash) if ref == "auto" else ref
+        sufijo = "__estable" if tipo == "estable" else ""
+        return PARAMS_DIR / f"{nombre}{sufijo}.json"
+    return Path(ref) if Path(ref).is_absolute() else cfgmod.RAIZ / ref
+
+
+def resolver_params(cfg: cfgmod.Config, fe_hash: str) -> dict:
+    """Hiperparámetros según `final.params_desde` (manual | optuna:<study|auto> | estable:<study|auto> | archivo:<path>).
+
+    Los json de Optuna guardan el `fe_hash` con el que se optimizaron: usarlos con
+    otras features es un error, no un warning.
+    """
+    if cfg.final.params_desde == "manual":
+        return dict(cfg.lgbm.manual)
+    if cfg.final.params_desde.startswith("top:"):
+        raise ValueError(
+            "params_desde=top:<k> son varios conjuntos: usar resolver_conjunto"
+        )
+    data = cargar_json_params(cfg, ruta_params(cfg, fe_hash), fe_hash)
+    if "ensamble" in data:
+        raise ValueError(
+            "el archivo es un ensamble (varios conjuntos): usar resolver_conjunto"
+        )
     return dict(data["params"])
