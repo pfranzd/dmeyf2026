@@ -13,7 +13,7 @@ se entrene con BAJA+1 + BAJA+2.
 La entrega definitiva está **congelada** en [`definitiva/`](definitiva/): una configuración
 autocontenida (`config.yaml`), los hiperparámetros finales (`params.json`) y el origen y el
 sha256 esperado del CSV (`entrega.json`). No depende de `configs/exp/`, de `work/` ni de
-Optuna: solo del dataset crudo de la cátedra. Reproducirla tarda ~25 min y usa ~10 GB de RAM.
+Optuna: solo del dataset crudo de la cátedra. Reproducirla tarda ~80 min (FE ~10 min y 24 modelos) y usa ~10 GB de RAM.
 
 **Linux / VM de GCP** (crea el entorno, descarga el crudo y compara el sha256):
 

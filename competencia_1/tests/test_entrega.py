@@ -143,3 +143,16 @@ def test_promover_un_ensamble_y_resolverlo_de_vuelta(tmp_path):
         ("t3", miembros[0]["params"]),
         ("t7", miembros[1]["params"]),
     ]
+
+
+def test_promover_toma_un_corte_no_registrado_desde_submits(tmp_path):
+    run = _run_falso(tmp_path, envios=(11000,))
+    (run / "submits").mkdir()
+    csv = run / "submits" / "20260101-000000_exp_promedio_e10500.csv"
+    csv.write_bytes(b"1" + bytes([10]) + b"2" + bytes([10]))
+    destino = promover(run, 10500, destino=tmp_path / "d")
+    info = json.loads((destino / "entrega.json").read_text())
+    import hashlib
+
+    assert info["sha256_esperado"] == hashlib.sha256(csv.read_bytes()).hexdigest()
+    assert info["csv_original"] == csv.name and info["envios"] == 10500

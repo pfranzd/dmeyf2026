@@ -44,12 +44,23 @@ def _cargar_run(run_dir: Path) -> tuple[dict, dict]:
     return meta, yaml.safe_load(cfg_p.read_text(encoding="utf-8"))
 
 
-def _csv_del_run(meta: dict, envios: int, modelo: str) -> tuple[str, str]:
-    """(ruta, sha256) del CSV `*_<modelo>_e<envios>.csv` registrado en el run."""
+def _csv_del_run(
+    meta: dict, envios: int, modelo: str, run_dir: Path | None = None
+) -> tuple[str, str]:
+    """(ruta, sha256) del CSV `*_<modelo>_e<envios>.csv` registrado en el run.
+
+    Si el corte no se registró (p. ej. un CSV extra generado después con las probabilidades
+    del run), se toma de `<run>/submits/`: el contenido es el mismo que escribiría la etapa
+    salida con ese corte, y el sha256 se calcula del archivo.
+    """
     sufijo = f"_{modelo}_e{envios}.csv"
     candidatos = {
         k: v for k, v in meta.get("archivos", {}).items() if k.endswith(sufijo)
     }
+    if not candidatos and run_dir is not None:
+        extra = sorted((run_dir / "submits").glob(f"*{sufijo}"))
+        if extra:
+            return ruta_relativa(extra[0]), sha256_archivo(extra[0])
     if not candidatos:
         disponibles = sorted(
             Path(k).name for k in meta.get("archivos", {}) if k.endswith(".csv")
@@ -83,7 +94,7 @@ def promover(
     params = meta.get("modelo", {}).get("params_final")
     if not params:
         raise ValueError("meta.json no tiene modelo.params_final")
-    csv_ruta, csv_sha = _csv_del_run(meta, envios, modelo)
+    csv_ruta, csv_sha = _csv_del_run(meta, envios, modelo, run_dir)
 
     # Reconstruye desde el crudo solo si se pide: la base debe dar el mismo contenido
     # (se verificó para esta entrega); si no, se usa el CSV procesado local.

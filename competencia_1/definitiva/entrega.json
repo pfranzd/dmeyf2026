@@ -1,13 +1,13 @@
 {
-  "run": "work/competencia_1/runs/20261007-075254_e023_fe_deltas_todos_final",
-  "experimento": "e023_fe_deltas_todos_final",
-  "commit_del_run": "f076b68b4fa3c468b8db4733aec8c25b6bbd5f04",
-  "commit_actual": "f076b68b4fa3c468b8db4733aec8c25b6bbd5f04",
-  "promovido": "2026-10-07T22:40:40-03:00",
-  "envios": 11000,
+  "run": "work/competencia_1/runs/20261009-232755_e032_expansiva_auc_topk",
+  "experimento": "e032_expansiva_auc_topk",
+  "commit_del_run": "68ca8267aea86762723bfc878e8a5a0f0e5e0e79",
+  "commit_actual": "896a2094d5e1497f8e4783f967c95274fea2783d",
+  "promovido": "2026-10-10T08:14:15-03:00",
+  "envios": 10500,
   "modelo": "promedio",
-  "csv_original": "20261007-075254_e023_fe_deltas_todos_final_promedio_e11000.csv",
-  "sha256_esperado": "3d4a9fc0d59a295d2495969465d25587cf46041952a5b1a4c3f135ea7d13f3bf",
+  "csv_original": "20261009-232755_e032_expansiva_auc_topk_promedio_e10500.csv",
+  "sha256_esperado": "5d2713bd87934be94c6c54ca9ec59ba013104090faeb5fe982228516fc9180d1",
   "versiones": {
     "python": "3.11.0",
     "lightgbm": "4.7.0",
@@ -16,5 +16,5 @@
     "duckdb": "1.5.5",
     "numpy": "2.4.6"
   },
-  "resultado_publico": 105.6
+  "resultado_publico": 107.7175
 }
