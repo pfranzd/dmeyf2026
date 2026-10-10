@@ -2,8 +2,8 @@
   "run": "work/competencia_1/runs/20261009-232755_e032_expansiva_auc_topk",
   "experimento": "e032_expansiva_auc_topk",
   "commit_del_run": "68ca8267aea86762723bfc878e8a5a0f0e5e0e79",
-  "commit_actual": "39f9a328ac75ef2a50122bd271ec9d523ef520df",
-  "promovido": "2026-10-10T17:20:52-03:00",
+  "commit_actual": "8aa592c59ef883211bb00e9c9cba8592345cd655",
+  "promovido": "2026-10-10T19:05:30-03:00",
   "envios": 10500,
   "modelo": "promedio",
   "csv_original": "20261009-232755_e032_expansiva_auc_topk_promedio_e10500.csv",
@@ -17,5 +17,7 @@
     "numpy": "2.4.6"
   },
   "resultado_publico": 107.7175,
-  "modelos_incluidos": 24
+  "modelos_incluidos": 24,
+  "config_experimento": "competencia_1/configs/exp/e032_expansiva_auc_topk.yaml",
+  "completo_automatico": true
 }
