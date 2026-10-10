@@ -80,6 +80,10 @@ Archivos auxiliares: `e012_excluir.txt` (columnas a excluir), `e019_params.json`
   coincidentes en un 92 %). Lo único distinto es la estabilidad: el desvío entre semillas de los
   top-5 baja de 2,4–5,3 M a 1,1–3,5 M.
 - **Subir `num_iterations` no mejora:** con lr × iteraciones ≈ 6 está el óptimo (e028).
+- **e032 (ventana expansiva + AUC + ensamble top-12):** 60 trials (37 completos, 23 podados, ~50 min), AUC medio
+  0,8986 el mejor y 0,8977 el 12.º. Ganancia meseta del top-12: 260,5 M en 202105 (train 202103) y 384,2 M en
+  202106 (train 202103–202104), contra ~267 M y ~446 M de e022: no comparable 1 a 1 (otro FE, otro objetivo y
+  otro train), pero 202106 baja ~60 M. Sus top-11 000 coinciden en 78 % con los de e023 (Jaccard 0,778).
 - Los valores de validación se midieron en los mismos meses con los que se eligieron los
   parámetros: están algo inflados. No son una estimación del rendimiento en 202108.
 
@@ -98,10 +102,12 @@ diferencias menores como criterio.
 | `20261006-005701_e019_e011_final3m_mindata` | `e019_e011_final3m_mindata` | 103,73 M | 10 000 envíos: 104,50 M |
 | `20261006-012932_e017_noche_us05` | `e017_noche_us05` | 99,10 M | 10 000 envíos: 97,50 M |
 | ensamble `ens01_e019_e017` | `python -m competencia_1.ensamble` | 101,94 M (10 000) / 101,89 M (11 000) | |
-| `20261007-075254_e023_fe_deltas_todos_final` | `e023_fe_deltas_todos_final` | **105,60 M** | 10 000 envíos: 104,03 M. **Entrega definitiva actual** |
+| `20261007-075254_e023_fe_deltas_todos_final` | `e023_fe_deltas_todos_final` | 105,60 M | 10 000 envíos: 104,03 M. Entrega definitiva hasta el 2026-10-10 |
 | ensamble `ens02_e019_e023` | `python -m competencia_1.ensamble` | 102,27 M (10 500) | |
+| ensamble `ens03_e023_e032` | `python -m competencia_1.ensamble` | 105,24 M (10 000) / 105,63 M (11 000) | Sin sinergia: queda al nivel de e023 y por debajo del promedio de sus partes en 10 000 |
 | `20261007-193742_e027_fe_deltas1_todos_final` | `e027_fe_deltas1_todos_final` | 98,18 M | 10 000 envíos: 96,11 M |
 | `20261008-071859_e030_fe_deltas_todos_us03_final` | `e030_fe_deltas_todos_us03_final` | 105,02 M | 10 000 envíos: 103,26 M. Empata con e023 |
+| `20261009-232755_e032_expansiva_auc_topk` | `e032_expansiva_auc_topk` | 106,45 M | 10 500 envíos: **107,72 M** (ENTREGA DEFINITIVA actual); 10 000: 109,26 M (mejor público). Ventaja sobre e023: +0,9 M (11 000) y +5,2 M (10 000); la diferencia del público tiene ruido de ~±3 M |
 
 Los CSV y los runs están en `work/` (no se versionan). El sha256 de la entrega definitiva está
 en `competencia_1/definitiva/entrega.json`.

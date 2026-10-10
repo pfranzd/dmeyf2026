@@ -10,9 +10,18 @@ periodos:
   n_meses_train: 1
   n_folds: 2
   meses_final:
+  - 202103
   - 202104
   - 202105
   - 202106
+  folds:
+  - train:
+    - 202103
+    valid: 202105
+  - train:
+    - 202103
+    - 202104
+    valid: 202106
 target:
   positivos:
   - BAJA+1
@@ -30,14 +39,14 @@ fe:
   - Visa_Finiciomora
   drop_extra: []
   intrafila:
-    tc_consolidado: false
-    tc_fechas: false
-    ratios: false
-    agregados: false
-    flags: false
-  campos_serie: todos
+    tc_consolidado: true
+    tc_fechas: true
+    ratios: true
+    agregados: true
+    flags: true
+  campos_serie: curado
   lags:
-    activo: false
+    activo: true
     n:
     - 1
     - 2
@@ -48,8 +57,8 @@ fe:
     - 2
     pct: true
   ventanas:
-    activo: false
-    tamanio: 3
+    activo: true
+    tamanio: 2
     stats:
     - avg
     - max
@@ -57,11 +66,11 @@ fe:
     - std
     ratio_avg: true
   tendencia:
-    activo: false
-    tamanio: 3
-  historia: false
+    activo: true
+    tamanio: 2
+  historia: true
   rankings:
-    activo: false
+    activo: true
     campos: curado
     ntile10:
     - ctrx_quarter
@@ -72,7 +81,7 @@ fe:
     activo: false
     n: 0
 dataset:
-  undersampling: 0.1
+  undersampling: 0.25
   excluir_bloques: []
   excluir_features: []
 lgbm:
@@ -92,13 +101,15 @@ lgbm:
     num_leaves: 8
     min_data_in_leaf: 76
 optuna:
-  n_trials: 80
+  n_trials: 60
   study_name: auto
   ventana_meseta: 401
+  objetivo: auc
+  pruning: true
   espacio:
     learning_rate:
       tipo: float
-      low: 0.001
+      low: 0.005
       high: 0.05
       log: true
     num_leaves:
@@ -108,22 +119,22 @@ optuna:
       log: true
     min_data_in_leaf:
       tipo: int
-      low: 1
+      low: 5
       high: 2000
       log: true
     feature_fraction:
       tipo: float
-      low: 0.02
+      low: 0.05
       high: 0.5
       log: true
     num_iterations:
       tipo: int
-      low: 200
-      high: 4096
+      low: 150
+      high: 1500
       log: false
 estabilidad:
   top_k: 5
-  n_semillas: 5
+  n_semillas: 10
   criterio: mediana
   n_simulaciones: 100
 ablacion:
@@ -136,14 +147,14 @@ ablacion:
       excluir_features: []
 final:
   params_desde: archivo:competencia_1/definitiva/params.json
-  n_semillas: 20
+  n_semillas: 2
   semillas: null
   promedio: true
   reescalar_min_data: false
   params_ignorar_fe_hash: true
 salida:
   envios:
-  - 11000
+  - 10500
   formato: solo_ids
 etapas:
   datos: true
