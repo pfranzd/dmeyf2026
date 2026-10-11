@@ -155,7 +155,7 @@ final:
   modelos_desde: competencia_1/definitiva/modelos
 salida:
   envios:
-  - 10500
+  - 10000
   formato: solo_ids
 etapas:
   datos: true

@@ -107,7 +107,7 @@ diferencias menores como criterio.
 | ensamble `ens03_e023_e032` | `python -m competencia_1.ensamble` | 105,24 M (10 000) / 105,63 M (11 000) | Sin sinergia: queda al nivel de e023 y por debajo del promedio de sus partes en 10 000 |
 | `20261007-193742_e027_fe_deltas1_todos_final` | `e027_fe_deltas1_todos_final` | 98,18 M | 10 000 envíos: 96,11 M |
 | `20261008-071859_e030_fe_deltas_todos_us03_final` | `e030_fe_deltas_todos_us03_final` | 105,02 M | 10 000 envíos: 103,26 M. Empata con e023 |
-| `20261009-232755_e032_expansiva_auc_topk` | `e032_expansiva_auc_topk` | 106,45 M | 10 500 envíos: **107,72 M** (ENTREGA DEFINITIVA actual, con los 24 modelos incluidos); 10 000: 109,26 M (mejor público). Ventaja sobre e023: +0,9 M (11 000) y +5,2 M (10 000); la diferencia del público tiene ruido de ~±3 M |
+| `20261009-232755_e032_expansiva_auc_topk` | `e032_expansiva_auc_topk` | 106,45 M | 10 500 envíos: 107,72 M; 10 000: **109,26 M** (ENTREGA DEFINITIVA actual desde el 2026-10-10, con los 24 modelos incluidos; antes se había promovido 10 500). Ventaja sobre e023: +0,9 M (11 000) y +5,2 M (10 000); la diferencia del público tiene ruido de ~±3 M |
 
 Los CSV y los runs están en `work/` (no se versionan). El sha256 de la entrega definitiva está
 en `competencia_1/definitiva/entrega.json`.

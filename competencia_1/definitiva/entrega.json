@@ -2,12 +2,12 @@
   "run": "work/competencia_1/runs/20261009-232755_e032_expansiva_auc_topk",
   "experimento": "e032_expansiva_auc_topk",
   "commit_del_run": "68ca8267aea86762723bfc878e8a5a0f0e5e0e79",
-  "commit_actual": "38666d6a17b9d3d61b86be8c52e3ddb61a6311a6",
-  "promovido": "2026-10-10T21:07:38-03:00",
-  "envios": 10500,
+  "commit_actual": "ff02c74ad7b23f182b56d24dc0a277f400c354f1",
+  "promovido": "2026-10-10T21:35:46-03:00",
+  "envios": 10000,
   "modelo": "promedio",
-  "csv_original": "20261009-232755_e032_expansiva_auc_topk_promedio_e10500.csv",
-  "sha256_esperado": "5d2713bd87934be94c6c54ca9ec59ba013104090faeb5fe982228516fc9180d1",
+  "csv_original": "20261009-232755_e032_expansiva_auc_topk_promedio_e10000.csv",
+  "sha256_esperado": "d194531be2064c1b4eaba42523a591aef7a987ffe8b5d9162c5bd74ed09d0364",
   "versiones": {
     "python": "3.11.0",
     "lightgbm": "4.7.0",
@@ -16,7 +16,7 @@
     "duckdb": "1.5.5",
     "numpy": "2.4.6"
   },
-  "resultado_publico": 107.7175,
+  "resultado_publico": 109.2575,
   "modelos_incluidos": 24,
   "config_experimento": "competencia_1/configs/exp/e032_expansiva_auc_topk.yaml",
   "completo_automatico": true
