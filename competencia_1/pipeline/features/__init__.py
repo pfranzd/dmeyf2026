@@ -37,10 +37,21 @@ FEATURES_DIR = WORK / "features"
 PREFIJOS_RATIO = ("r_", "ratioavg_", "deltapct_")
 
 
+def _fe_para_hash(fe: cfgmod.FE) -> dict:
+    """Sección fe para el hash. Las claves agregadas después solo entran si se apartan de su
+    default: así los experimentos previos conservan su fe_hash (caché y estudios de Optuna)."""
+    d = dataclasses.asdict(fe)
+    if d.get("montos") == "crudo":
+        d.pop("montos")
+    if d.get("comportamiento") is False:
+        d.pop("comportamiento")
+    return d
+
+
 def calcular_fe_hash(cfg: cfgmod.Config, base: Path) -> tuple[str, dict]:
     payload = {
         "version": FE_VERSION,
-        "fe": dataclasses.asdict(cfg.fe),
+        "fe": _fe_para_hash(cfg.fe),
         "base_bytes": base.stat().st_size,
     }
     if cfg.fe.canaritos.activo:

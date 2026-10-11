@@ -53,6 +53,17 @@ cómo usarlo sin saltarse ninguna validación.
    `entrega.json` (el último submit antes de las 23:59:59 de Buenos Aires es el que cuenta), y el
    link va en el tópico de la entrega.
 
+## Ensambles de varios runs
+
+Si la entrega es un ensamble (`python -m competencia_1.ensamble`), se pasa su carpeta como `--run`
+(`work/competencia_1/ensambles/<id>`); el CSV del corte debe estar en su `submits/`. `promover_ensamble`
+deja en `definitiva/` un `entrega.json` con `tipo: ensamble` y cada run en
+`definitiva/componentes/<i>_<experimento>/` (config, params y modelos). Reproducir = reproducir cada
+componente (verificando también el sha256 de su propio CSV), promediar los rankings y comparar el
+sha256 del ensamble. La validación tarda más: reconstruye las features de cada componente desde el
+crudo (~40 min en total para e032 + e033 + e034; la validación `predecir` ronda 1 h). Los modelos de los componentes no se versionan en el repo de
+trabajo (`.gitignore`): viven en el repo de entregas.
+
 ## Notas
 
 - Lo que se valida es la carpeta tal como queda en git (con `.gitattributes` que evita conversión

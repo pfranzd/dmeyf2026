@@ -1,0 +1,13 @@
+# e032 con los montos en escala relativa por mes (rank cero fijo).
+# Hipótesis: los montos nominales derivan entre train y target (inflación ~3 %/mes: mediana de
+# los m* x1,17 entre 202103 y 202108; aguinaldo en 202106: mpayroll +48 %, el 78 % de los
+# clientes con sueldo sube > 30 %; mrentabilidad y mpasivos_margen +35 % en 202107). La
+# posición del cliente dentro de su mes es estable. Los lags, deltas y ventanas se calculan
+# sobre la escala nueva (un delta = "subió en el ranking").
+# Todo lo demás igual a e032 (folds, objetivo AUC, espacio, final top:12 x 2 semillas).
+# Cambia la sección fe -> fe_hash nuevo -> la etapa features RECONSTRUYE (~10 min).
+hereda: e032_expansiva_auc_topk.yaml
+experimento: e033_montos_rank_cero_fijo
+
+fe:
+  montos: rank_cero_fijo

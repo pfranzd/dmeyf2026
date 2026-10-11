@@ -25,6 +25,7 @@ class Particion:
     features: list[str]
     y: np.ndarray | None  # int8; None si no hay target (mes a predecir)
     es_baja2: np.ndarray | None  # bool; None si no hay target
+    es_baja1: np.ndarray | None = None  # bool; None si no hay target
 
     def __len__(self) -> int:
         return len(self.ids)
@@ -95,8 +96,9 @@ def cargar_particion(
             df = df.filter(pl.Series(es_baja | (azar <= undersampling)))
         y = df["clase_ternaria"].is_in(positivos).to_numpy().astype(np.int8)
         es_baja2 = (df["clase_ternaria"] == "BAJA+2").to_numpy()
+        es_baja1 = (df["clase_ternaria"] == "BAJA+1").to_numpy()
     else:
-        y = es_baja2 = None
+        y = es_baja2 = es_baja1 = None
 
     X = np.ascontiguousarray(
         df.select([pl.col(c).cast(pl.Float32) for c in features]).to_numpy(),
@@ -109,7 +111,18 @@ def cargar_particion(
         features=list(features),
         y=y,
         es_baja2=es_baja2,
+        es_baja1=es_baja1,
     )
+
+
+def pesos_filas(part: Particion, peso_baja1: float) -> np.ndarray | None:
+    """Pesos de entrenamiento: 1 salvo BAJA+1, que pesa `peso_baja1`. None si no hace falta
+    (peso 1): el Dataset queda idéntico al de antes y los resultados previos no cambian."""
+    if peso_baja1 == 1.0:
+        return None
+    if part.es_baja1 is None:
+        raise ValueError("peso_baja1 requiere una partición con target")
+    return np.where(part.es_baja1, peso_baja1, 1.0)
 
 
 def contar_filas(parquet: Path, meses: list[int], undersampling: float = 1.0) -> float:

@@ -26,7 +26,7 @@ import optuna
 import polars as pl
 
 from competencia_1.pipeline import config as cfgmod
-from competencia_1.pipeline.dataset import cargar_particion
+from competencia_1.pipeline.dataset import cargar_particion, pesos_filas
 from competencia_1.pipeline.features import columnas_seleccionadas, construir_features
 from competencia_1.pipeline.metricas import resumir_scores
 from competencia_1.pipeline.modelo import (
@@ -35,6 +35,7 @@ from competencia_1.pipeline.modelo import (
     entrenar_dataset,
     nombre_estudio,
     params_lgbm,
+    peso_baja1,
     predecir,
 )
 from competencia_1.pipeline.periodos import Fold
@@ -62,6 +63,8 @@ class FoldPreparado:
     n_train_pos: int
     X_valid: np.ndarray
     es_baja2_valid: np.ndarray
+    es_baja1_train: np.ndarray | None = None
+    peso_actual: float = 1.0  # peso de BAJA+1 con el que está armado dtrain
 
 
 def preparar_folds(
@@ -93,11 +96,21 @@ def preparar_folds(
                 parquet, features, [fold.valid], cfg.target.positivos
             )
             X_valid, es_baja2 = valid.X, valid.es_baja2
-        dtrain = crear_dataset(train.X, train.y, features, cfg.lgbm.fijos)
+        peso = cfg.target.peso_baja1
+        dtrain = crear_dataset(
+            train.X, train.y, features, cfg.lgbm.fijos, pesos_filas(train, peso)
+        )
         dtrain.construct()
         out.append(
             FoldPreparado(
-                fold, dtrain, len(train), int(train.y.sum()), X_valid, es_baja2
+                fold,
+                dtrain,
+                len(train),
+                int(train.y.sum()),
+                X_valid,
+                es_baja2,
+                train.es_baja1,
+                peso,
             )
         )
         log.info(
@@ -110,6 +123,18 @@ def preparar_folds(
             len(es_baja2),
         )
     return out
+
+
+def ajustar_pesos(prep: FoldPreparado, peso: float) -> None:
+    """Deja `prep.dtrain` con BAJA+1 pesando `peso` (el Dataset se reusa entre trials)."""
+    if peso == prep.peso_actual:
+        return
+    # set_field y no set_weight: set_weight convierte un vector de unos en None, y None no
+    # borra los pesos ya cargados en un Dataset construido.
+    w = np.where(prep.es_baja1_train, peso, 1.0).astype(np.float32)
+    prep.dtrain.set_field("weight", w)
+    prep.dtrain.weight = w
+    prep.peso_actual = peso
 
 
 def sugerir(trial: optuna.Trial, espacio: dict) -> dict:
@@ -148,10 +173,11 @@ def puntuar_folds(
 ) -> list[np.ndarray]:
     """Entrena con `params` y `seed` y devuelve el score del mes de validación de cada fold."""
     p, n_iter = params_lgbm(cfg, params, seed)
-    return [
-        predecir(entrenar_dataset(prep.dtrain, p, n_iter), prep.X_valid)
-        for prep in preps
-    ]
+    scores = []
+    for prep in preps:
+        ajustar_pesos(prep, peso_baja1(cfg, params))
+        scores.append(predecir(entrenar_dataset(prep.dtrain, p, n_iter), prep.X_valid))
+    return scores
 
 
 def resumir_folds(
@@ -236,6 +262,7 @@ def correr_estudio(
         p, n_iter = params_lgbm(cfg, completos, cfg.semilla_maestra)
         resultados: list[dict] = []
         for i, prep in enumerate(preps):
+            ajustar_pesos(prep, peso_baja1(cfg, completos))
             score = predecir(entrenar_dataset(prep.dtrain, p, n_iter), prep.X_valid)
             resultados += resumir_folds(cfg, [prep], [score])
             if cfg.optuna.pruning and i < len(preps) - 1:

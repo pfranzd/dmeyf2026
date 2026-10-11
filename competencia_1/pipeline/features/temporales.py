@@ -8,6 +8,7 @@ ventana usa `lead` ni `following`.
 
 from competencia_1.pipeline.config import FE
 from competencia_1.pipeline.features.catalogo import Catalogo
+from competencia_1.pipeline.features.comportamiento import ventanas_comportamiento
 
 # `fuente` es la vista sobre el parquet base. pk_* sobreviven a las filas
 # fantasma (donde numero_de_cliente y foto_mes son NULL).
@@ -66,6 +67,8 @@ def ventanas_sql(fe: FE) -> str:
             "historia as (partition by pk_cliente order by pk_mes "
             "rows between unbounded preceding and current row)"
         )
+    if fe.comportamiento:
+        defs += ventanas_comportamiento()
     return ("\n        window " + "\n             , ".join(defs)) if defs else ""
 
 

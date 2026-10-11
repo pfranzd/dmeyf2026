@@ -24,6 +24,7 @@ from competencia_1.pipeline.modelo import (
     crear_dataset,
     entrenar_dataset,
     params_lgbm,
+    peso_baja1,
     resolver_params,
 )
 from competencia_1.pipeline.semillas import generar_semillas
@@ -44,6 +45,8 @@ def importancias_promedio(
     """Ganancia normalizada (suma 1 por modelo) promediada entre semillas x folds."""
     por_modelo = []
     for seed in semillas:
+        if peso_baja1(cfg, params) != 1.0:
+            raise NotImplementedError("peso_baja1 != 1 no está soportado en esta etapa")
         p, n_iter = params_lgbm(cfg, params, seed)
         for fold in cfgmod.folds(cfg):
             tr = cargar_particion(

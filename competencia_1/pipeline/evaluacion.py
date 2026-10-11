@@ -11,12 +11,13 @@ from pathlib import Path
 import polars as pl
 
 from competencia_1.pipeline import config as cfgmod
-from competencia_1.pipeline.dataset import cargar_particion
+from competencia_1.pipeline.dataset import cargar_particion, pesos_filas
 from competencia_1.pipeline.features import columnas_seleccionadas, construir_features
 from competencia_1.pipeline.metricas import curva_submuestreada, resumir_scores
 from competencia_1.pipeline.modelo import (
     entrenar_lgbm,
     params_lgbm,
+    peso_baja1,
     predecir,
     resolver_params,
 )
@@ -45,7 +46,8 @@ def evaluar_fold(
     )
     valid = cargar_particion(parquet, features, [fold.valid], cfg.target.positivos)
     p, n_iter = params_lgbm(cfg, params, seed)
-    modelo = entrenar_lgbm(train.X, train.y, features, p, n_iter)
+    w = pesos_filas(train, peso_baja1(cfg, params))
+    modelo = entrenar_lgbm(train.X, train.y, features, p, n_iter, w)
     res = resumir_scores(
         valid.es_baja2, predecir(modelo, valid.X), cfg.optuna.ventana_meseta
     )

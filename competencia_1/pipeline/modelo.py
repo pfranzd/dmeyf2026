@@ -24,7 +24,9 @@ def params_lgbm(cfg: cfgmod.Config, params: dict, seed: int) -> tuple[dict, int]
     LightGBM; junto con `deterministic` y `num_threads` fijos hace el entrenamiento
     reproducible bit a bit.
     """
+    # peso_baja1 no es de LightGBM: va como pesos del Dataset (ver peso_baja1())
     p = {**cfg.lgbm.fijos, **params, "seed": int(seed)}
+    p.pop("peso_baja1", None)
     if "num_iterations" not in p:
         raise ValueError("falta num_iterations en los hiperparámetros")
     n_iter = int(p.pop("num_iterations"))
@@ -34,13 +36,27 @@ def params_lgbm(cfg: cfgmod.Config, params: dict, seed: int) -> tuple[dict, int]
     return p, n_iter
 
 
+def peso_baja1(cfg: cfgmod.Config, params: dict) -> float:
+    """Peso de BAJA+1: el del trial (si se tuneó) o el fijo de target.peso_baja1."""
+    return float(params.get("peso_baja1", cfg.target.peso_baja1))
+
+
 def crear_dataset(
-    X: np.ndarray, y: np.ndarray, features: list[str], params: dict
+    X: np.ndarray,
+    y: np.ndarray,
+    features: list[str],
+    params: dict,
+    weight: np.ndarray | None = None,
 ) -> lgb.Dataset:
     """Dataset de LightGBM. max_bin y feature_pre_filter se fijan acá (al construirlo)."""
     ds_params = {k: params[k] for k in ("max_bin", "feature_pre_filter") if k in params}
     return lgb.Dataset(
-        X, label=y, feature_name=features, params=ds_params, free_raw_data=True
+        X,
+        label=y,
+        weight=weight,
+        feature_name=features,
+        params=ds_params,
+        free_raw_data=True,
     )
 
 
@@ -50,9 +66,16 @@ def entrenar_dataset(dtrain: lgb.Dataset, params: dict, n_iter: int) -> lgb.Boos
 
 
 def entrenar_lgbm(
-    X: np.ndarray, y: np.ndarray, features: list[str], params: dict, n_iter: int
+    X: np.ndarray,
+    y: np.ndarray,
+    features: list[str],
+    params: dict,
+    n_iter: int,
+    weight: np.ndarray | None = None,
 ) -> lgb.Booster:
-    return entrenar_dataset(crear_dataset(X, y, features, params), params, n_iter)
+    return entrenar_dataset(
+        crear_dataset(X, y, features, params, weight), params, n_iter
+    )
 
 
 def predecir(booster: lgb.Booster, X: np.ndarray) -> np.ndarray:
@@ -109,6 +132,8 @@ def nombre_estudio(cfg: cfgmod.Config, fe_hash: str) -> str:
         cfg.optuna.objetivo != "ganancia"
     ):  # solo si cambia: no renombra estudios previos
         huella["objetivo"] = cfg.optuna.objetivo
+    if cfg.target.peso_baja1 != 1.0:  # idem
+        huella["peso_baja1"] = cfg.target.peso_baja1
     d = cfg.dataset
     if (
         d.excluir_bloques or d.excluir_features

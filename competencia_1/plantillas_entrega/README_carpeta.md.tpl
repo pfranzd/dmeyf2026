@@ -20,9 +20,9 @@ sha256 del CSV generado con el de arriba (`RESULTADO: OK, coincide`):
 
 | Modo | Qué rehace | Tiempo aprox. |
 |---|---|---|
-| `predecir` (default) | Datos y features desde el crudo, y **predice** con los @@N_MODELOS@@ modelos ya entrenados | ~16 min |
-| `entrenar` | Lo anterior, pero **reentrena** los @@N_MODELOS@@ modelos con los hiperparámetros de `competencia_1/definitiva/params.json` | ~80 min |
-| `completo` | **Todo, incluida la optimización de hiperparámetros** (Optuna, @@N_TRIALS@@ trials) que dio origen a esos hiperparámetros | ~1,5 h |
+| `predecir` (default) | Datos y features desde el crudo, y **predice** con los @@N_MODELOS@@ modelos ya entrenados | @@T_PREDECIR@@ |
+| `entrenar` | Lo anterior, pero **reentrena** los @@N_MODELOS@@ modelos con los hiperparámetros de `competencia_1/definitiva/params.json` | @@T_ENTRENAR@@ |
+| `completo` | **Todo, incluida la optimización de hiperparámetros** (Optuna, @@N_TRIALS@@ trials) que dio origen a esos hiperparámetros | @@T_COMPLETO@@ |
 
 **Linux o VM de GCP:**
 

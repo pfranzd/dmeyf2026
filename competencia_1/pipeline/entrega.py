@@ -74,6 +74,14 @@ def _csv_del_run(
     return ruta, candidatos[ruta]["sha256"]
 
 
+def _cortes_del_run(meta: dict, run_dir: Path, modelo: str = "promedio") -> list[int]:
+    """Cortes de envíos con CSV `*_<modelo>_e<N>.csv` en el run (registrados o en submits/)."""
+    patron = re.compile(rf"_{re.escape(modelo)}_e(\d+)\.csv$")
+    nombres = [Path(k).name for k in meta.get("archivos", {})]
+    nombres += [p.name for p in (run_dir / "submits").glob("*.csv")]
+    return sorted({int(m.group(1)) for n in nombres if (m := patron.search(n))})
+
+
 def _referencias_archivo(valor) -> list[str]:
     """Rutas de los valores `archivo:<ruta>` que aparezcan en cualquier parte de un config."""
     if isinstance(valor, str):
@@ -184,6 +192,8 @@ def promover(
     cfgmod.desde_dict(entrega)  # valida: falla antes de escribir nada
 
     destino.mkdir(parents=True, exist_ok=True)
+    # una entrega de ensamble anterior no se mezcla con esta (un run suelto)
+    shutil.rmtree(destino / "componentes", ignore_errors=True)
     viejos = destino / "modelos"
     if (
         viejos.exists()
@@ -251,30 +261,233 @@ def promover(
     return destino
 
 
-def _correr_y_comparar(args: list[str], info: dict, limpiar: bool) -> bool:
-    """Corre el pipeline con `args` y compara el sha256 del CSV con `info`."""
+def promover_ensamble(
+    ens_dir: Path,
+    envios: int,
+    destino: Path = DIR_DEFINITIVA,
+    desde_crudo: bool = True,
+    con_modelos: bool = True,
+    resultado_publico: float | None = None,
+) -> Path:
+    """Congela un ensamble de runs (`python -m competencia_1.ensamble`) como entrega definitiva.
+
+    Cada run del ensamble se promueve con `promover` en `destino/componentes/<i>_<exp>/` (su
+    config, params y modelos); `destino/entrega.json` guarda el método, los pesos y el sha256 del
+    CSV del ensamble. Reproducir = reproducir cada componente + promediar sus rankings.
+    """
+    ens_dir = Path(ens_dir)
+    ens_dir = ens_dir if ens_dir.is_absolute() else RAIZ / ens_dir
+    meta_p = ens_dir / "meta.json"
+    if not meta_p.exists():
+        raise FileNotFoundError(f"no existe {meta_p}: ¿es la carpeta de un ensamble?")
+    meta = json.loads(meta_p.read_text(encoding="utf-8"))
+    csvs = sorted((ens_dir / "submits").glob(f"*_e{envios}.csv"))
+    if len(csvs) != 1:
+        raise ValueError(
+            f"el ensamble no tiene un único CSV con {envios} envíos en {ens_dir / 'submits'}"
+        )
+    csv = csvs[0]
+
+    # El puntaje público es de un ensamble y un corte concretos: solo se conserva si coinciden.
+    previo = destino / "entrega.json"
+    if resultado_publico is None and previo.exists():
+        anterior = json.loads(previo.read_text(encoding="utf-8"))
+        if (
+            anterior.get("run") == ruta_relativa(ens_dir)
+            and anterior.get("envios") == envios
+        ):
+            resultado_publico = anterior.get("resultado_publico")
+
+    # La carpeta queda solo con el ensamble: nada de una entrega anterior de un run suelto.
+    destino.mkdir(parents=True, exist_ok=True)
+    for viejo in ("config.yaml", "params.json", "entrega.json"):
+        (destino / viejo).unlink(missing_ok=True)
+    for viejo in ("modelos", "componentes"):
+        shutil.rmtree(destino / viejo, ignore_errors=True)
+
+    componentes = []
+    for i, e in enumerate(meta["entradas"]):
+        run = Path(e["run"])
+        run = run if run.is_absolute() else RAIZ / run
+        m, _ = _cargar_run(run)
+        # cada componente se verifica con su propio CSV: el del mismo corte si existe
+        cortes = _cortes_del_run(m, run)
+        if not cortes:
+            raise ValueError(
+                f"el run {run.name} no tiene CSV 'promedio' para verificar"
+            )
+        corte = envios if envios in cortes else cortes[0]
+        sub = destino / "componentes" / f"{i}_{m['experimento']}"
+        promover(
+            run,
+            corte,
+            "promedio",
+            sub,
+            desde_crudo=desde_crudo,
+            con_modelos=con_modelos,
+        )
+        ci = json.loads((sub / "entrega.json").read_text(encoding="utf-8"))
+        componentes.append(
+            {
+                "carpeta": ruta_relativa(sub),
+                "run": ci["run"],
+                "experimento": ci["experimento"],
+                "peso": e.get("peso", 1.0),
+                "envios_verificacion": corte,
+                "sha256_csv": ci["sha256_esperado"],
+                "sha256_probas": e.get("sha256"),
+                "modelos": ci["modelos_incluidos"],
+                "config_experimento": ci["config_experimento"],
+                "completo_automatico": ci["completo_automatico"],
+            }
+        )
+
+    nombre = meta["ensamble_id"].split("_", 1)[1]
+    versiones = json.loads(
+        (RAIZ / componentes[0]["carpeta"] / "entrega.json").read_text(encoding="utf-8")
+    ).get("versiones")
+    info = {
+        "tipo": "ensamble",
+        "run": ruta_relativa(ens_dir),
+        "experimento": nombre,
+        "metodo": meta["metodo"],
+        "pesos": [c["peso"] for c in componentes],
+        "commit_del_run": meta.get("git", {}).get("commit"),
+        "commit_actual": info_git()["commit"],
+        "promovido": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "envios": envios,
+        "modelo": "ensamble",
+        "csv_original": csv.name,
+        "sha256_esperado": sha256_archivo(csv),
+        "versiones": versiones,
+        "resultado_publico": resultado_publico,
+        "modelos_incluidos": sum(c["modelos"] for c in componentes),
+        "config_experimento": None,
+        "completo_automatico": all(c["completo_automatico"] for c in componentes),
+        "componentes": componentes,
+    }
+    previo.write_text(
+        json.dumps(info, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    log.info(
+        "ensamble %s escrito en %s (%d componentes, %d envíos)",
+        nombre,
+        ruta_relativa(destino),
+        len(componentes),
+        envios,
+    )
+    return destino
+
+
+def _correr(args: list[str]) -> Path:
+    """Corre el pipeline con `args` y devuelve la carpeta del run nuevo."""
     # Import diferido: main arrastra todo el pipeline y WORK ya quedó fijado por el entorno.
     from competencia_1 import main as main_mod
-    from competencia_1.pipeline.tracking import RUNS_DIR, WORK
+    from competencia_1.pipeline.tracking import RUNS_DIR
 
-    if limpiar and WORK.exists():
-        shutil.rmtree(WORK)
     antes = {p.name for p in RUNS_DIR.glob("*")} if RUNS_DIR.exists() else set()
     main_mod.main(args)
     nuevos = sorted({p.name for p in RUNS_DIR.glob("*")} - antes)
     if not nuevos:
         raise RuntimeError("la corrida no generó ninguna carpeta de run")
-    run = RUNS_DIR / nuevos[-1]
-    csvs = list((run / "submits").glob(f"*_{info['modelo']}_e{info['envios']}.csv"))
+    return RUNS_DIR / nuevos[-1]
+
+
+def _csv_unico(run: Path, modelo: str, envios: int) -> Path:
+    csvs = list((run / "submits").glob(f"*_{modelo}_e{envios}.csv"))
     if len(csvs) != 1:
         raise RuntimeError(f"se esperaba 1 CSV en {run / 'submits'}, hay {len(csvs)}")
-    obtenido = sha256_archivo(csvs[0])
-    ok = obtenido == info["sha256_esperado"]
-    log.info("CSV generado: %s", ruta_relativa(csvs[0]))
-    log.info("sha256 esperado: %s", info["sha256_esperado"])
-    log.info("sha256 obtenido: %s", obtenido)
-    log.info("RESULTADO: %s", "OK, coincide" if ok else "DIFIERE")
+    return csvs[0]
+
+
+def _comparar(csv: Path, esperado: str, etiqueta: str = "") -> bool:
+    obtenido = sha256_archivo(csv)
+    ok = obtenido == esperado
+    log.info("%sCSV generado: %s", etiqueta, ruta_relativa(csv))
+    log.info("%ssha256 esperado: %s", etiqueta, esperado)
+    log.info("%ssha256 obtenido: %s", etiqueta, obtenido)
+    log.info("%sRESULTADO: %s", etiqueta, "OK, coincide" if ok else "DIFIERE")
     return ok
+
+
+def _limpiar_work() -> None:
+    from competencia_1.pipeline.tracking import WORK
+
+    if WORK.exists():
+        shutil.rmtree(WORK)
+
+
+def _correr_y_comparar(args: list[str], info: dict, limpiar: bool) -> bool:
+    """Corre el pipeline con `args` y compara el sha256 del CSV con `info`."""
+    if limpiar:
+        _limpiar_work()
+    run = _correr(args)
+    return _comparar(
+        _csv_unico(run, info["modelo"], info["envios"]), info["sha256_esperado"]
+    )
+
+
+def _args_completo(info: dict) -> list[str]:
+    config = Path(info["config_experimento"])
+    config = config if config.is_absolute() else RAIZ / config
+    return [
+        "--config",
+        str(config),
+        "--set",
+        f"salida.envios=[{info['envios']}]",
+        "--set",
+        "datos.reconstruir_target=true",
+    ]
+
+
+def _reproducir_ensamble(info: dict, limpiar: bool, modo: str) -> bool:
+    """Reproduce cada componente (predecir | entrenar | completo), verifica su CSV, promedia
+    los rankings como el ensamble original y compara el sha256 del CSV del ensamble."""
+    import polars as pl
+
+    from competencia_1.pipeline.datos import CACHE_BASE
+    from competencia_1.pipeline.ensamble import combinar
+    from competencia_1.pipeline.salida import escribir_csv_ids, ids_del_periodo
+    from competencia_1.pipeline.tracking import RUNS_DIR
+
+    if limpiar:
+        _limpiar_work()
+    probas, componentes_ok, target = [], True, None
+    for c in info["componentes"]:
+        sub = RAIZ / c["carpeta"]
+        ci = _info(sub)
+        etiqueta = f"[{Path(c['carpeta']).name}] "
+        log.info("%sreproduciendo componente (modo %s)", etiqueta, modo)
+        if modo == "completo":
+            args = _args_completo(ci)
+        else:
+            args = ["--config", str(sub / "config.yaml")]
+            if modo == "entrenar":
+                args += ["--set", "final.modelos_desde=null"]
+        run = _correr(args)
+        csv = _csv_unico(run, ci["modelo"], ci["envios"])
+        componentes_ok &= _comparar(csv, ci["sha256_esperado"], etiqueta)
+        probas.append(pl.read_parquet(run / "probas" / "promedio.parquet"))
+        cfg = yaml.safe_load((run / "config_resuelta.yaml").read_text(encoding="utf-8"))
+        target = cfg["periodos"]["target"]
+
+    ens = combinar(probas, info["metodo"], info["pesos"])
+    run_id = f"{datetime.now().astimezone():%Y%m%d-%H%M%S}_ensamble"
+    salida = RUNS_DIR / run_id / "submits"
+    salida.mkdir(parents=True)
+    ens.write_parquet(salida.parent / "probas.parquet")
+    csv = escribir_csv_ids(
+        ens,
+        info["envios"],
+        salida / f"{run_id}_e{info['envios']}.csv",  # *_ensamble_e<N>.csv
+        ids_del_periodo(CACHE_BASE, target),
+    )
+    ok = _comparar(csv, info["sha256_esperado"], "[ensamble] ")
+    if not componentes_ok:
+        log.error("algún componente no reprodujo su propio CSV")
+    return ok and componentes_ok
 
 
 def _info(destino: Path) -> dict:
@@ -293,6 +506,10 @@ def reproducir(
     ignora y reentrena todo desde cero.
     """
     info = _info(destino)
+    if info.get("tipo") == "ensamble":
+        return _reproducir_ensamble(
+            info, limpiar, "entrenar" if entrenar else "predecir"
+        )
     args = ["--config", str(destino / "config.yaml")]
     if entrenar:
         args += ["--set", "final.modelos_desde=null"]
@@ -312,14 +529,6 @@ def reproducir_completo(destino: Path = DIR_DEFINITIVA, limpiar: bool = False) -
             "esta entrega no se puede rehacer de punta a punta con un solo config "
             "(sus hiperparámetros vienen de otra corrida): ver los pasos en el README"
         )
-    config = Path(info["config_experimento"])
-    config = config if config.is_absolute() else RAIZ / config
-    args = [
-        "--config",
-        str(config),
-        "--set",
-        f"salida.envios=[{info['envios']}]",
-        "--set",
-        "datos.reconstruir_target=true",
-    ]
-    return _correr_y_comparar(args, info, limpiar)
+    if info.get("tipo") == "ensamble":
+        return _reproducir_ensamble(info, limpiar, "completo")
+    return _correr_y_comparar(_args_completo(info), info, limpiar)

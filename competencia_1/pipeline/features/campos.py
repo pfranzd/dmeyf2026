@@ -1,6 +1,7 @@
 """Listas de campos "curados" y resolución de `campos_serie` / `rankings.campos`."""
 
 import logging
+import re
 
 log = logging.getLogger("competencia_1.fe")
 
@@ -127,3 +128,19 @@ def resolver_campos(
             and t.upper().startswith(TIPOS_NUM)
         ]
     raise ValueError(f"{etiqueta}: valor inválido {spec!r} (curado | todos | lista)")
+
+
+# Montos nominales en pesos: originales m*, de las tarjetas (Master_m*, Visa_m*), consolidados
+# de TC (tc_m*) y agregados de la familia 1 (m_*). Los ratios (r_*) ya son adimensionales.
+_PATRON_MONTO = re.compile(r"^((Master|Visa|tc)_)?m[a-z_]")
+
+
+def campos_monto(esquema: dict[str, str], excluidos: set[str]) -> list[str]:
+    return [
+        c
+        for c, t in esquema.items()
+        if _PATRON_MONTO.match(c)
+        and c not in NO_SERIE
+        and c not in excluidos
+        and t.upper().startswith(TIPOS_NUM)
+    ]

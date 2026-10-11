@@ -22,7 +22,7 @@ import numpy as np
 import polars as pl
 
 from competencia_1.pipeline import config as cfgmod
-from competencia_1.pipeline.dataset import cargar_particion, contar_filas
+from competencia_1.pipeline.dataset import cargar_particion, contar_filas, pesos_filas
 from competencia_1.pipeline.features import columnas_seleccionadas, construir_features
 from competencia_1.pipeline.modelo import (
     cargar_json_params,
@@ -32,6 +32,7 @@ from competencia_1.pipeline.modelo import (
     importancias,
     nombre_estudio,
     params_lgbm,
+    peso_baja1,
     predecir,
     resolver_params,
     ruta_params,
@@ -140,7 +141,8 @@ def etapa_final(cfg: cfgmod.Config, run: Run) -> None:
                 modelo = _cargar_modelo(origen / f"{nombre}.txt", len(features))
             else:
                 p, n_iter = params_lgbm(cfg, params, seed)
-                modelo = entrenar_lgbm(train.X, train.y, features, p, n_iter)
+                w = pesos_filas(train, peso_baja1(cfg, params))
+                modelo = entrenar_lgbm(train.X, train.y, features, p, n_iter, w)
             prob = predecir(modelo, objetivo.X)
             todas.append(prob)
             df = pl.DataFrame({"numero_de_cliente": objetivo.ids, "prob": prob})

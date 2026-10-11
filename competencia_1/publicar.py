@@ -3,6 +3,9 @@
     # Un run pasa a ser la entrega oficial con N envíos:
     python -m competencia_1.publicar --run work/competencia_1/runs/<run_id> --envios 10500
 
+    # O un ensamble de varios runs (carpeta de `python -m competencia_1.ensamble`):
+    python -m competencia_1.publicar --run work/competencia_1/ensambles/<id> --envios 10000
+
 Antes de commitear corre la entrega exportada en un entorno virtual nuevo (versiones fijas de
 requirements-lock.txt) y exige que el CSV sea idéntico, byte a byte, al del run. Si no coincide,
 no se commitea ni se sube nada. Opciones: --validar predecir|entrenar|completo (default predecir),
@@ -39,7 +42,10 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument(
-        "--run", type=Path, required=True, help="carpeta del run a publicar"
+        "--run",
+        type=Path,
+        required=True,
+        help="carpeta del run a publicar, o de un ensamble (work/competencia_1/ensambles/<id>)",
     )
     ap.add_argument(
         "--envios", type=int, required=True, help="corte de envíos entregado"

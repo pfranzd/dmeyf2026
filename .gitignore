@@ -199,3 +199,6 @@ work/
 db/
 docs/
 .claude/settings.local.json
+
+# Modelos de los componentes de una entrega de ensamble (~400 MB): viven en el repo de entregas
+competencia_1/definitiva/componentes/*/modelos/

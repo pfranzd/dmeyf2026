@@ -35,6 +35,7 @@ class Periodos:
 @dataclass(frozen=True)
 class Target:
     positivos: list[str]
+    peso_baja1: float  # peso de las filas BAJA+1 al entrenar (1.0 = sin pesos)
 
 
 @dataclass(frozen=True)
@@ -107,6 +108,8 @@ class FE:
     historia: bool
     rankings: Rankings
     canaritos: Canaritos
+    montos: str  # crudo | rank_cero_fijo | deflactado (escala de los montos m*)
+    comportamiento: bool  # familia 9: eventos, recency, drenaje, RFM
 
 
 @dataclass(frozen=True)
@@ -217,6 +220,8 @@ CLAVES_POSTERIORES = {
     "periodos": {"folds": None},
     "optuna": {"objetivo": "ganancia", "pruning": False},
     "final": {"modelos_desde": None},
+    "fe": {"montos": "crudo", "comportamiento": False},
+    "target": {"peso_baja1": 1.0},
 }
 
 
@@ -385,6 +390,11 @@ def validar(cfg: Config) -> None:
         "BAJA+2",
     }:
         raise ValueError(f"target.positivos inválido: {cfg.target.positivos}")
+    if not cfg.target.peso_baja1 >= 0:
+        raise ValueError("target.peso_baja1 debe ser >= 0")
+    e = cfg.optuna.espacio.get("peso_baja1")
+    if e is not None and (e["tipo"] != "float" or float(e["low"]) < 0):
+        raise ValueError("optuna.espacio.peso_baja1: float con low >= 0")
     if not 0 < cfg.dataset.undersampling <= 1:
         raise ValueError("dataset.undersampling debe estar en (0, 1]")
     if not 1 <= cfg.final.n_semillas <= 20:
@@ -449,6 +459,9 @@ def validar(cfg: Config) -> None:
     validar_fe(cfg.fe)
 
 
+MONTOS = ("crudo", "rank_cero_fijo", "deflactado")
+
+
 def validar_fe(fe: FE) -> None:
     if fe.lags.activo and (not fe.lags.n or min(fe.lags.n) < 1):
         raise ValueError("fe.lags.n debe tener enteros >= 1 con lags activos")
@@ -471,6 +484,16 @@ def validar_fe(fe: FE) -> None:
     ):
         raise ValueError(
             "fe.intrafila.ratios requiere tc_consolidado y agregados activos"
+        )
+    if fe.montos not in MONTOS:
+        raise ValueError(
+            f"fe.montos inválido: {fe.montos} (crudo | rank_cero_fijo | deflactado)"
+        )
+    if fe.comportamiento and not (
+        fe.intrafila.tc_consolidado and fe.intrafila.agregados
+    ):
+        raise ValueError(
+            "fe.comportamiento requiere intrafila.tc_consolidado y agregados"
         )
     if fe.canaritos.activo and fe.canaritos.n < 1:
         raise ValueError("fe.canaritos.n debe ser >= 1 con canaritos activos")

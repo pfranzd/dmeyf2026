@@ -1,0 +1,16 @@
+# e032 + familia 9: señales de comportamiento previas a la baja (literatura de churn bancario).
+# Hipótesis: la baja viene precedida de eventos (deja de entrar el sueldo, se pierde un
+# producto, empeora el status de una tarjeta, se vacía la cuenta, cae la actividad). Los deltas
+# solo los aproximan; con 4 meses de train un flag explícito es más fácil de aprender.
+# Features: f_perdio_payroll, n_productos_perdidos, f_visa/master_status_sube, recency
+# (meses desde payroll / trx / consumo TC, en t-2..t), r_saldo_vs_max, r_activos_vs_max,
+# racha_caida_ctrx, r_transf_emitidas_recibidas y rfm_score (quintiles del mes).
+# EDA (fold B de e032): los clientes CON payroll son el 55 % de la base pero solo 75 de las
+# 1 098 BAJA+2, con recall 0,12 en el top-10 000 (18 M sin capturar): la pérdida del sueldo
+# es justamente el evento que los distingue.
+# Cambia la sección fe -> fe_hash nuevo -> la etapa features RECONSTRUYE (~10 min).
+hereda: e032_expansiva_auc_topk.yaml
+experimento: e034_comportamiento
+
+fe:
+  comportamiento: true

@@ -1,0 +1,16 @@
+# Semillerío ampliado sobre el estudio de e032, sin volver a optimizar.
+# Hipótesis: público y privado son el mismo mes (desvío del privado ~10 M); bajar la varianza
+# del ensamble (top-20 trials x 5 semillas = 100 modelos, contra 24) protege el privado aunque
+# no mueva el público. Reusa features y estudio de e032: solo corre final y salida (~5-6 h).
+hereda: e032_expansiva_auc_topk.yaml
+experimento: e037_semillerio_top20
+
+optuna:
+  study_name: e032_expansiva_auc_topk_6035dfc9_ce600411
+
+final:
+  params_desde: top:20
+  n_semillas: 5
+
+etapas:
+  optuna: false

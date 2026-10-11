@@ -58,6 +58,8 @@ CONSERVAR = {"datasets", "work", ".venv", ".git"}
 PROHIBIDOS = re.compile(r"(^|/)(datasets|work|db)/|\.(csv|parquet)$")
 MAX_BYTES = 50 * 1024 * 1024  # GitHub rechaza archivos de más de 100 MB; avisamos antes
 MODOS = ("predecir", "entrenar", "completo")
+# Tiempos medidos para una entrega de un run (e032, 24 modelos; ver README de la carpeta).
+TIEMPOS_RUN = {"T_PREDECIR": "~16 min", "T_ENTRENAR": "~80 min", "T_COMPLETO": "~1,5 h"}
 
 
 class PublicacionError(RuntimeError):
@@ -278,6 +280,61 @@ def _vaciar_carpeta(destino: Path) -> None:
         shutil.rmtree(hijo) if hijo.is_dir() else hijo.unlink()
 
 
+def _es_ensamble(origen: Path) -> bool:
+    """Carpeta de `python -m competencia_1.ensamble` (su meta.json lista las entradas)."""
+    meta = origen / "meta.json"
+    return meta.exists() and "entradas" in json.loads(meta.read_text(encoding="utf-8"))
+
+
+def _texto_componentes(info: dict) -> str:
+    filas = [
+        "| # | Experimento | Modelos | Peso | Run de origen |",
+        "|---|---|---|---|---|",
+    ]
+    for i, c in enumerate(info["componentes"]):
+        filas.append(
+            f"| {i} | `{c['experimento']}` | {c['modelos']} | {c['peso']:g} | "
+            f"`{Path(c['run']).name}` |"
+        )
+    return "\n".join(filas)
+
+
+def _exportar_valores_ensamble(info: dict, destino: Path) -> tuple[dict, list]:
+    """Valores de plantilla y resúmenes de Optuna de un ensamble (uno por componente)."""
+    resumenes, modelos, optim = [], [], []
+    for i, c in enumerate(info["componentes"]):
+        meta_c, cfg_c = ent._cargar_run(RAIZ / c["run"])
+        nombre = f"{i}_{c['experimento']}"
+        r = _resumen_optuna(meta_c, cfg_c, destino / "optimizacion" / nombre)
+        resumenes.append(r)
+        modelos.append(f"### {nombre}\n\n{_resumen_modelo(cfg_c, meta_c)}")
+        texto = _texto_optimizacion(c, meta_c, r).replace(
+            "optimizacion/", f"optimizacion/{nombre}/"
+        )
+        if r is not None:  # el `completo` de la carpeta rehace todos los componentes
+            texto = texto.replace(
+                "`bash reproducir.sh completo` (corre", "el modo `completo` (corre"
+            )
+        optim.append(f"### {nombre}\n\n{texto}")
+    n_trials = sum((r or {}).get("n_trials") or 0 for r in resumenes)
+    valores = {
+        "N_TRIALS": str(n_trials),
+        "N_COMPONENTES": str(len(info["componentes"])),
+        "COMPONENTES": _texto_componentes(info),
+        "METODO": info["metodo"],
+        "RESUMEN": "\n\n".join(modelos),
+        "OPTIMIZACION": "\n\n".join(optim),
+        "DONDE_MODELOS": "`competencia_1/definitiva/componentes/*/modelos`",
+        # Componentes en serie, cada uno con su FE desde el crudo. Medido el 2026-10-11 para
+        # e032 + e033 + e034 (FE: 10 + 13 + 17 min; modelos finales: 54 + 72 + 62 min; Optuna:
+        # ~20 min cada uno). Orientativo para otros ensambles: depende de la máquina.
+        "T_PREDECIR": "~1 h",
+        "T_ENTRENAR": "~4 h",
+        "T_COMPLETO": "~5 h",
+    }
+    return valores, resumenes
+
+
 def exportar(
     repo: Path,
     carpeta: str,
@@ -285,9 +342,10 @@ def exportar(
     commit: str,
     definitiva: Path = ent.DIR_DEFINITIVA,
 ) -> dict:
-    """Escribe `<repo>/<carpeta>` a partir de competencia_1/definitiva y el run. Devuelve el resumen."""
+    """Escribe `<repo>/<carpeta>` a partir de competencia_1/definitiva y el run (o el ensamble).
+    Devuelve el resumen."""
     info = json.loads((definitiva / "entrega.json").read_text(encoding="utf-8"))
-    meta, cfg = ent._cargar_run(run_dir)
+    ensamble = info.get("tipo") == "ensamble"
     destino = repo / carpeta
     _vaciar_carpeta(destino)
 
@@ -299,11 +357,18 @@ def exportar(
             (destino / rel).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(origen, destino / rel)
 
-    # Configuración del experimento: él, lo que hereda y los archivos que referencia.
+    # Configuración del experimento: él, lo que hereda y los archivos que referencia
+    # (en un ensamble, la de cada componente).
     base = RAIZ / "competencia_1" / "configs" / "base.yaml"
     fuentes = {base}
-    if info.get("config_experimento"):
-        fuentes |= set(ent.cadena_config(RAIZ / info["config_experimento"]))
+    configs = (
+        [c["config_experimento"] for c in info["componentes"]]
+        if ensamble
+        else [info.get("config_experimento")]
+    )
+    for cfg_exp in filter(None, configs):
+        fuentes |= set(ent.cadena_config(RAIZ / cfg_exp))
+    if len(fuentes) > 1:
         info["cadena_config"] = sorted(ruta_relativa(p) for p in fuentes)
     for f in fuentes:
         (destino / ruta_relativa(f)).parent.mkdir(parents=True, exist_ok=True)
@@ -323,11 +388,24 @@ def exportar(
     _escribir(destino / "requirements-lock.txt", generar_lock(requirements))
     _escribir(destino / ".python-version", "3.11\n")
 
-    resumen = _resumen_optuna(meta, cfg, destino / "optimizacion")
     n_modelos = info.get("modelos_incluidos") or 1
-    n_trials = (resumen or {}).get("n_trials") or cfg["optuna"]["n_trials"]
+    if ensamble:
+        especificos, resumen = _exportar_valores_ensamble(info, destino)
+        plantilla_readme = "README_carpeta_ensamble.md.tpl"
+    else:
+        meta, cfg = ent._cargar_run(run_dir)
+        resumen = _resumen_optuna(meta, cfg, destino / "optimizacion")
+        n_trials = (resumen or {}).get("n_trials") or cfg["optuna"]["n_trials"]
+        especificos = {
+            "N_TRIALS": str(n_trials),
+            "RESUMEN": _resumen_modelo(cfg, meta),
+            "OPTIMIZACION": _texto_optimizacion(info, meta, resumen),
+            "DONDE_MODELOS": "`competencia_1/definitiva/modelos`",
+            **TIEMPOS_RUN,
+        }
+        plantilla_readme = "README_carpeta.md.tpl"
     valores = {
-        "EXPERIMENTO": str(meta["experimento"]),
+        "EXPERIMENTO": str(info["experimento"]),
         "ENVIOS": str(info["envios"]),
         "CSV_ORIGINAL": info["csv_original"],
         "SHA256": info["sha256_esperado"],
@@ -337,21 +415,19 @@ def exportar(
             else "(no registrado)"
         ),
         "N_MODELOS": str(n_modelos),
-        "N_TRIALS": str(n_trials),
         "URL_REPO": URL_REPO + ".git",
         "CARPETA": carpeta,
         "PYTHON": "3.11",
-        "RESUMEN": _resumen_modelo(cfg, meta),
-        "OPTIMIZACION": _texto_optimizacion(info, meta, resumen),
         "FECHA": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M"),
         "COMMIT": commit[:10],
         "RUN_ID": run_dir.name,
+        **especificos,
     }
     script = _render("entrega.py.tpl", valores)
     _escribir(destino / "entrega.py", script)
     _escribir(destino / "entrega.ipynb", _a_notebook(destino / "entrega.py"))
     _escribir(destino / "reproducir.sh", _render("reproducir.sh.tpl", valores))
-    _escribir(destino / "README.md", _render("README_carpeta.md.tpl", valores))
+    _escribir(destino / "README.md", _render(plantilla_readme, valores))
     _escribir(repo / ".gitignore", _render("gitignore.tpl", {}))
     _escribir(repo / ".gitattributes", _render("gitattributes.tpl", {}))
     _escribir(repo / "README.md", _readme_raiz(repo))
@@ -538,17 +614,25 @@ def publicar(
 
     commit = verificar_codigo_commiteado()
     verificar_repo_entregas(repo, inicializar)
-    meta, _ = ent._cargar_run(run_dir)  # falla pronto si no es un run
-    ent._csv_del_run(meta, envios, "promedio", run_dir)
-
-    ent.promover(
-        run_dir,
-        envios,
-        "promedio",
-        destino=definitiva,
-        con_modelos=True,
-        resultado_publico=resultado_publico,
-    )
+    if _es_ensamble(run_dir):  # carpeta de `python -m competencia_1.ensamble`
+        ent.promover_ensamble(
+            run_dir,
+            envios,
+            destino=definitiva,
+            con_modelos=True,
+            resultado_publico=resultado_publico,
+        )
+    else:
+        meta, _ = ent._cargar_run(run_dir)  # falla pronto si no es un run
+        ent._csv_del_run(meta, envios, "promedio", run_dir)
+        ent.promover(
+            run_dir,
+            envios,
+            "promedio",
+            destino=definitiva,
+            con_modelos=True,
+            resultado_publico=resultado_publico,
+        )
     try:
         salida = exportar(repo, carpeta, run_dir, commit, definitiva)
         info, destino = salida["info"], salida["destino"]

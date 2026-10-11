@@ -1,0 +1,13 @@
+# e032 con el peso de BAJA+1 tuneado por Optuna.
+# Hipótesis: la ganancia solo cobra BAJA+2, pero BAJA+1 entra como positivo con peso 1. En la
+# validación de e032 (fold B, 202106) el modelo puntúa más alto a BAJA+1 que a BAJA+2 (score
+# medio 0,34 contra 0,24; el 68 % de las BAJA+1 cae en el top-10 000 contra el 55 % de las
+# BAJA+2): ~600 de los 10 000 envíos van a clientes que no pagan. El objetivo AUC ya mide BAJA+2
+# contra el resto (BAJA+1 incluida), así que Optuna elige el peso que mejor ordena BAJA+2.
+# Mismas features que e032 (caché 6035dfc967f1): no reconstruye.
+hereda: e032_expansiva_auc_topk.yaml
+experimento: e035_peso_baja1
+
+optuna:
+  espacio:
+    peso_baja1: {tipo: float, low: 0.0, high: 1.0, log: false}

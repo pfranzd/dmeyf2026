@@ -15,6 +15,8 @@ periodos:
 
 target:
   positivos: [BAJA+1, BAJA+2]      # clases con y=1 al entrenar (ganancia: solo BAJA+2)
+  peso_baja1: 1.0                  # peso de las filas BAJA+1 (1.0 = sin pesos); Optuna lo tunea
+                                   # si `peso_baja1` está en optuna.espacio
 
 datos:
   csv_procesado: datasets/processed/competencia_01.csv
@@ -46,6 +48,9 @@ fe:
     campos: curado
     ntile10: [ctrx_quarter, mcaja_ahorro, mpasivos_margen, mcuentas_saldo]
   canaritos: {activo: false, n: 0}
+  montos: crudo                    # crudo | rank_cero_fijo | deflactado: escala de los montos (m*,
+                                   # Master_m*, Visa_m*, tc_m*, m_*) por mes ANTES de lags/deltas/ventanas
+  comportamiento: false            # familia 9: perdió payroll/productos, status TC, recency, drenaje, RFM
 
 dataset:
   undersampling: 0.1               # sobre CONTINUA; BAJA+1/BAJA+2 se conservan todas

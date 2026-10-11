@@ -10,9 +10,9 @@
 #
 # | MODO | Qué hace | Tiempo aprox. |
 # |---|---|---|
-# | `predecir` (default) | datos → features → predice con los @@N_MODELOS@@ modelos ya entrenados (`competencia_1/definitiva/modelos`) | ~16 min |
-# | `entrenar` | datos → features → reentrena los @@N_MODELOS@@ modelos con los hiperparámetros de `params.json` | ~80 min |
-# | `completo` | rehace TODO: la optimización de hiperparámetros con Optuna (@@N_TRIALS@@ trials), selección de los mejores y modelos finales | ~1,5 h |
+# | `predecir` (default) | datos → features → predice con los @@N_MODELOS@@ modelos ya entrenados (@@DONDE_MODELOS@@) | @@T_PREDECIR@@ |
+# | `entrenar` | datos → features → reentrena los @@N_MODELOS@@ modelos con los hiperparámetros guardados | @@T_ENTRENAR@@ |
+# | `completo` | rehace TODO: la optimización de hiperparámetros con Optuna (@@N_TRIALS@@ trials), selección de los mejores y modelos finales | @@T_COMPLETO@@ |
 
 # %%
 import os

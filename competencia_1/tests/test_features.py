@@ -211,3 +211,132 @@ def test_campos_inexistentes_son_error(muestra, tmp_path):
     with pytest.raises(ValueError, match="inexistentes"):
         _build(_cfg("fe.drop_extra=[no_existe]"), muestra, tmp_path)
     assert not list((tmp_path / "feat").glob("*.tmp"))  # no quedan cachés a medias
+
+
+def test_montos_rank_cero_fijo(muestra, tmp_path):
+    crudo, _, h0 = _build(_cfg(), muestra, tmp_path)
+    df, _, h1 = _build(_cfg("fe.montos=rank_cero_fijo"), muestra, tmp_path)
+    assert h0 != h1
+    assert df.height == crudo.height
+    j = crudo.select("numero_de_cliente", "foto_mes", c="mcaja_ahorro").join(
+        df.select("numero_de_cliente", "foto_mes", r="mcaja_ahorro"),
+        on=["numero_de_cliente", "foto_mes"],
+    )
+    # signo y NULL preservados, cero fijo en 0, rango en [-1, 1]
+    assert (j["c"].is_null() == j["r"].is_null()).all()
+    nn = j.drop_nulls()
+    assert ((nn["c"] == 0) == (nn["r"] == 0)).all()
+    assert ((nn["c"] > 0) == (nn["r"] > 0)).all()
+    assert nn["r"].min() >= -1 and nn["r"].max() <= 1
+    # monótono dentro de cada mes y signo
+    for (_, s), g in nn.filter(pl.col("c") != 0).group_by(
+        "foto_mes", pl.col("c").sign().alias("s")
+    ):
+        g = g.sort("c")
+        assert (g["r"].diff().drop_nulls() >= 0).all()
+    # los no montos no cambian; los deltas se calculan en la escala nueva
+    assert crudo["ctrx_quarter"].equals(df["ctrx_quarter"])
+    d = df.drop_nulls(["delta_1_mcaja_ahorro", "lag_1_mcaja_ahorro"])
+    assert (
+        d["delta_1_mcaja_ahorro"] - (d["mcaja_ahorro"] - d["lag_1_mcaja_ahorro"])
+    ).abs().max() < 1e-9
+
+
+def test_montos_deflactado(muestra, tmp_path):
+    crudo, _, _ = _build(_cfg(), muestra, tmp_path)
+    df, _, _ = _build(_cfg("fe.montos=deflactado"), muestra, tmp_path)
+    med = (
+        df.filter(pl.col("mpayroll") > 0)
+        .group_by("foto_mes")
+        .agg(pl.col("mpayroll").median())
+    )
+    assert (
+        med["mpayroll"] - 1
+    ).abs().max() < 0.05  # mediana de positivos ~1 en todos los meses
+    assert crudo["cproductos"].equals(df["cproductos"])
+
+
+def test_montos_crudo_no_cambia_fe_hash(muestra):
+    import dataclasses
+
+    from competencia_1.pipeline.features import _fe_para_hash
+
+    fe = _cfg().fe
+    assert "montos" not in _fe_para_hash(fe)
+    assert _fe_para_hash(fe) == {
+        k: v
+        for k, v in dataclasses.asdict(fe).items()
+        if k not in ("montos", "comportamiento")
+    }
+    with pytest.raises(ValueError, match="fe.montos"):
+        _cfg("fe.montos=otro")
+
+
+def test_comportamiento(muestra, tmp_path):
+    crudo, _, h0 = _build(_cfg(), muestra, tmp_path)
+    df, pq, h1 = _build(_cfg("fe.comportamiento=true"), muestra, tmp_path)
+    assert h0 != h1 and df.height == crudo.height
+    nuevas = set(df.columns) - set(crudo.columns)
+    assert nuevas == {
+        "f_perdio_payroll",
+        "n_productos_perdidos",
+        "f_visa_status_sube",
+        "f_master_status_sube",
+        "meses_desde_payroll",
+        "meses_desde_trx",
+        "meses_desde_consumo_tc",
+        "r_saldo_vs_max",
+        "r_activos_vs_max",
+        "racha_caida_ctrx",
+        "r_transf_emitidas_recibidas",
+        "rfm_score",
+    }
+    cat = pl.read_csv(pq.parent / "catalogo.csv")
+    assert set(cat.filter(pl.col("bloque") == "9_comportamiento")["feature"]) == nuevas
+    # recency en [0, 3]; NULL solo si la ventana no está completa (202103, 202104)
+    for c in ("meses_desde_payroll", "meses_desde_trx", "meses_desde_consumo_tc"):
+        v = df[c].drop_nulls()
+        assert v.min() >= 0 and v.max() <= 3
+        assert df.filter(pl.col("foto_mes") >= 202105)[c].null_count() == 0
+    assert df["rfm_score"].min() >= 3 and df["rfm_score"].max() <= 15
+    assert set(df["racha_caida_ctrx"].unique().to_list()) <= {0, 1, 2}
+
+    # f_perdio_payroll a mano para clientes presentes en 3 meses seguidos
+    b = pl.read_parquet(muestra).select(
+        "numero_de_cliente",
+        "foto_mes",
+        p=(pl.col("cpayroll_trx").fill_null(0) + pl.col("cpayroll2_trx").fill_null(0))
+        > 0,
+    )
+    t = b.filter(pl.col("foto_mes") == 202106)
+    for mes, s in ((202105, "p1"), (202104, "p2")):
+        t = t.join(
+            b.filter(pl.col("foto_mes") == mes).select(
+                "numero_de_cliente", pl.col("p").alias(s)
+            ),
+            on="numero_de_cliente",
+        )
+    esperado = t.select(
+        "numero_de_cliente",
+        e=((pl.col("p1") | pl.col("p2")) & ~pl.col("p")).cast(pl.Int32),
+    )
+    j = esperado.join(
+        df.filter(pl.col("foto_mes") == 202106).select(
+            "numero_de_cliente", "f_perdio_payroll"
+        ),
+        on="numero_de_cliente",
+    )
+    assert j.height > 1000 and (j["e"] == j["f_perdio_payroll"]).all()
+    assert j["e"].sum() > 0
+
+
+def test_comportamiento_apagado_no_cambia_fe_hash():
+    from competencia_1.pipeline.features import _fe_para_hash
+
+    assert "comportamiento" not in _fe_para_hash(_cfg().fe)
+    with pytest.raises(ValueError, match="comportamiento requiere"):
+        _cfg(
+            "fe.comportamiento=true",
+            "fe.intrafila.agregados=false",
+            "fe.intrafila.ratios=false",
+        )

@@ -34,12 +34,20 @@ La versión **definitiva** que debe reproducirse no se corre desde acá: está c
 | `e029_fe_deltas_todos_us03`, `e030_…_final` | e022 con undersampling 0,3; e030 es el final al estilo e023 (`e030_params.json`) |
 | `e031_fe_deltas_todos_fold2m` | e022 con un solo fold de 2 meses de train (202103–202104 → valid 202106); no se corrió |
 | `e032_expansiva_auc_topk` | Ventana expansiva (A: 202103→202105; B: 202103–202104→202106), objetivo AUC con pruning, FE curado completo con ventanas de 2 meses, undersampling 0,25; final = ensamble de los 12 mejores trials × 2 semillas con 202103–202106 |
+| `e033_montos_rank_cero_fijo` | e032 con todos los montos (m*, Master_m*, Visa_m*, tc_m*, m_*) en rank cero fijo por mes antes de lags/deltas/ventanas (`fe.montos`) |
+| `e034_comportamiento` | e032 + familia 9 (`fe.comportamiento`): perdió payroll, productos perdidos, status de TC que empeora, recency, drenaje de saldo, racha de caída de actividad, RFM |
+| `e035_peso_baja1` | e032 con el peso de BAJA+1 al entrenar tuneado por Optuna (`peso_baja1` en el espacio; `target.peso_baja1` para fijarlo) |
+| `e037_semillerio_top20` | Final de e032 con top-20 trials × 5 semillas (100 modelos), reusando su estudio y sus features |
 
 Opciones de config agregadas para e032 (todas con un default que no cambia los experimentos previos):
 `periodos.folds` (folds explícitos), `optuna.objetivo: ganancia|auc`, `optuna.pruning`,
 `final.params_desde: top:<k>` (ensamble de los k mejores trials; los modelos sueltos quedan en
 `probas/ensamble/` y el CSV sale del promedio) y `final.reescalar_min_data: filas`
 (min_data × filas del final / filas del train del último fold).
+
+Opciones agregadas para e033–e035 (default compatible: no cambian fe_hash ni nombres de estudio
+previos): `fe.montos: crudo|rank_cero_fijo|deflactado`, `fe.comportamiento` y `target.peso_baja1`
+(o `peso_baja1` como parámetro de `optuna.espacio`).
 
 Archivos auxiliares: `e012_excluir.txt` (columnas a excluir), `e019_params.json`,
 `e023_params.json` y `e030_params.json` (hiperparámetros con `min_data_in_leaf` ya multiplicado por 3).
@@ -84,6 +92,15 @@ Archivos auxiliares: `e012_excluir.txt` (columnas a excluir), `e019_params.json`
   0,8986 el mejor y 0,8977 el 12.º. Ganancia meseta del top-12: 260,5 M en 202105 (train 202103) y 384,2 M en
   202106 (train 202103–202104), contra ~267 M y ~446 M de e022: no comparable 1 a 1 (otro FE, otro objetivo y
   otro train), pero 202106 baja ~60 M. Sus top-11 000 coinciden en 78 % con los de e023 (Jaccard 0,778).
+- **EDA de drift y errores (2026-10-10, `notebooks/eda_c1_drift_errores.py`):** no hay meses con
+  variables rotas; los montos nominales suben ×1,17 (mediana) entre 202103 y 202108, `mpayroll` salta
+  +48 % en 202106 por el aguinaldo (78 % de los clientes con sueldo sube > 30 %) y `mrentabilidad` /
+  `mpasivos_margen` +35 % en 202107. Aun así, en el top-10 000 de e032 para 202108 los clientes con
+  payroll son el 2,0 % (2,5 % en la validación): el aguinaldo no infla la lista. En el fold B
+  (valid 202106) el modelo puntúa a BAJA+1 por encima de BAJA+2 (score medio 0,34 contra 0,24; 68 %
+  contra 55 % dentro del top-10 000) y los clientes con payroll tienen recall 0,12 (75 BAJA+2, 18 M
+  sin capturar). La validación adversarial con árboles separa los meses por artefactos (percent_rank
+  con empates, lags NULL al inicio del panel) y no sirve como medida de drift tal cual.
 - Los valores de validación se midieron en los mismos meses con los que se eligieron los
   parámetros: están algo inflados. No son una estimación del rendimiento en 202108.
 
@@ -108,6 +125,11 @@ diferencias menores como criterio.
 | `20261007-193742_e027_fe_deltas1_todos_final` | `e027_fe_deltas1_todos_final` | 98,18 M | 10 000 envíos: 96,11 M |
 | `20261008-071859_e030_fe_deltas_todos_us03_final` | `e030_fe_deltas_todos_us03_final` | 105,02 M | 10 000 envíos: 103,26 M. Empata con e023 |
 | `20261009-232755_e032_expansiva_auc_topk` | `e032_expansiva_auc_topk` | 106,45 M | 10 500 envíos: 107,72 M; 10 000: **109,26 M** (ENTREGA DEFINITIVA actual desde el 2026-10-10, con los 24 modelos incluidos; antes se había promovido 10 500). Ventaja sobre e023: +0,9 M (11 000) y +5,2 M (10 000); la diferencia del público tiene ruido de ~±3 M |
+| `20261010-232416_e035_peso_baja1` | `e035_peso_baja1` | 105,27 M | 10 000 envíos: 106,81 M. Validación empatada con e032 (AUC top-12 0,8975 contra 0,8979; ganancia 257,3 / 389,5 M contra 259,5 / 382,5 M); Optuna eligió peso_baja1 0,72–0,97 en 11 de los 12 mejores: bajar el peso de BAJA+1 no ayuda. −2,5 M (10 000) y −1,2 M (11 000) contra e032: no reemplaza |
+| `20261011-023622_e033_montos_rank_cero_fijo` | `e033_montos_rank_cero_fijo` | 107,36 M | 10 000 envíos: 110,08 M (+0,8 M sobre e032 en ambos cortes, dentro del ruido). Validación algo peor que e032: AUC top-12 0,8968 [0,8966–0,8974] contra 0,8979 [0,8977–0,8986]; ganancia 260,8 / 378,9 M contra 259,5 / 382,5 M. Top-10 000 coincide con e032 en Jaccard 0,906. Las features (fe_hash eb5bd54fd009) tardaron 1 h 46 min en la primera construcción; con los rankings calculados en lotes de 5 columnas (`rankings.materializar_montos`) tardan 13 min con salida idéntica |
+| `20261011-041115_e034_comportamiento` | `e034_comportamiento` | 109,40 M | 10 000 envíos: 108,98 M (−0,3 / +2,9 M contra e032, dentro del ruido). Validación empatada con e032: AUC top-12 0,8976 [0,8973–0,8982]; ganancia 257,7 / 388,7 M. La familia 9 se lleva el 7 % del gain (rfm_score es la 2.ª feature, meses_desde_payroll la 17.ª; los flags de status de TC no se usan): sustituye a ctrx_quarter y los rankings sin sumar. Jaccard top-10 000 contra e032 0,940 |
+| `20261011-054945_e037_semillerio_top20` | `e037_semillerio_top20` | 106,81 M | 10 000 envíos: 107,28 M (−2,0 / +0,4 M contra e032, dentro del ruido). Top-20 trials × 5 semillas (100 modelos) sobre el estudio de e032, sin reoptimizar. Top-10 000 coincide con e032 en Jaccard 0,976 (0,979 a 11 000): casi el mismo modelo con menos varianza |
+| ensamble `ens04_e032_e033_e034` | `python -m competencia_1.ensamble` (rank) | 107,28 M (11 000) | 10 000: **110,19 M**; 10 500: 110,17 M. Jaccard medio entre los tres modelos 0,918. Reproducción en modo predecir verificada (sha256 5ddd318d…) |
 
 Los CSV y los runs están en `work/` (no se versionan). El sha256 de la entrega definitiva está
 en `competencia_1/definitiva/entrega.json`.

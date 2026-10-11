@@ -36,6 +36,7 @@ from competencia_1.pipeline.modelo import (
     crear_dataset,
     entrenar_dataset,
     params_lgbm,
+    peso_baja1,
     predecir,
     resolver_params,
 )
@@ -99,6 +100,8 @@ def evaluar_variantes(
             )
             for f in folds
         ]
+        if peso_baja1(cfg, params) != 1.0:
+            raise NotImplementedError("peso_baja1 != 1 no está soportado en esta etapa")
         p, n_iter = params_lgbm(cfg, params, seed)
         for nombre, ix in indices.items():
             nombres = [features[j] for j in ix]

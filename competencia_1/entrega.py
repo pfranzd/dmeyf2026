@@ -3,6 +3,9 @@
     # Elegir qué run es la entrega y con cuántos envíos (genera competencia_1/definitiva/):
     python -m competencia_1.entrega promover --run work/competencia_1/runs/<run_id> --envios 11000
 
+    # O un ensamble de varios runs (python -m competencia_1.ensamble); incluye los modelos:
+    python -m competencia_1.entrega promover --ensamble work/competencia_1/ensambles/<id> --envios 10000
+
     # Reproducirla en un directorio aparte (work/entrega) y comparar el sha256. Si la entrega
     # incluye modelos entrenados (promover --con-modelos) solo predice (~12 min):
     python -m competencia_1.entrega reproducir
@@ -32,6 +35,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "reproducir":
 from competencia_1.pipeline.entrega import (
     DIR_DEFINITIVA,
     promover,
+    promover_ensamble,
     reproducir,
     reproducir_completo,
 )
@@ -53,7 +57,14 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("promover", help="congela un run como entrega definitiva")
-    p.add_argument("--run", type=Path, required=True, help="carpeta del run")
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--run", type=Path, help="carpeta del run")
+    g.add_argument(
+        "--ensamble",
+        type=Path,
+        help="carpeta de un ensamble (work/competencia_1/ensambles/<id>): cada run queda en "
+        "definitiva/componentes/ con sus modelos",
+    )
     p.add_argument(
         "--envios", type=int, required=True, help="corte de envíos a entregar"
     )
@@ -87,6 +98,11 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     args = ap.parse_args(argv)
+    if args.cmd == "promover" and args.ensamble:
+        promover_ensamble(
+            args.ensamble, args.envios, desde_crudo=not args.csv_procesado
+        )
+        return 0
     if args.cmd == "promover":
         promover(
             args.run,
