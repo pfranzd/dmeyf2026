@@ -52,6 +52,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--inicializar", action="store_true")
     ap.add_argument("--sin-push", action="store_true")
     ap.add_argument("--crudo-local", type=Path, default=None)
+    ap.add_argument(
+        "--publico",
+        type=float,
+        default=None,
+        help="puntaje público de este corte, en millones (se anota en entrega.json)",
+    )
     args = ap.parse_args(argv)
     try:
         r = publicar(
@@ -63,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
             push=not args.sin_push,
             inicializar=args.inicializar,
             crudo_local=args.crudo_local,
+            resultado_publico=args.publico,
         )
     except PublicacionError as e:
         print(f"\nNO SE PUBLICÓ: {e}", file=sys.stderr)

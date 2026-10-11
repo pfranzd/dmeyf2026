@@ -206,3 +206,19 @@ def test_cargar_modelo_valida_existencia_y_cantidad_de_features(tmp_path):
         _cargar_modelo(ruta, 4)
     # un modelo guardado y vuelto a cargar predice exactamente igual
     assert np.array_equal(_cargar_modelo(ruta, 3).predict(X), b.predict(X))
+
+
+def test_resultado_publico_solo_se_conserva_para_el_mismo_corte(tmp_path):
+    run = _run_falso(tmp_path, envios=(11000, 10000))
+    destino = promover(run, 11000, destino=tmp_path / "d", resultado_publico=105.6)
+    p = destino / "entrega.json"
+    assert json.loads(p.read_text())["resultado_publico"] == 105.6
+    # mismo run y mismo corte: se conserva
+    promover(run, 11000, destino=destino)
+    assert json.loads(p.read_text())["resultado_publico"] == 105.6
+    # mismo run pero otro corte: el puntaje era de otro corte, no se arrastra
+    promover(run, 10000, destino=destino)
+    assert json.loads(p.read_text())["resultado_publico"] is None
+    # indicado explícitamente: manda lo indicado
+    promover(run, 10000, destino=destino, resultado_publico=109.2575)
+    assert json.loads(p.read_text())["resultado_publico"] == 109.2575

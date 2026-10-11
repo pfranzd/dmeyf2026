@@ -528,6 +528,7 @@ def publicar(
     crudo_local: Path | None = None,
     validador=validar_en_limpio,
     definitiva: Path = ent.DIR_DEFINITIVA,
+    resultado_publico: float | None = None,
 ) -> dict:
     if modo not in MODOS:
         raise PublicacionError(f"modo de validación inválido: {modo}")
@@ -540,7 +541,14 @@ def publicar(
     meta, _ = ent._cargar_run(run_dir)  # falla pronto si no es un run
     ent._csv_del_run(meta, envios, "promedio", run_dir)
 
-    ent.promover(run_dir, envios, "promedio", destino=definitiva, con_modelos=True)
+    ent.promover(
+        run_dir,
+        envios,
+        "promedio",
+        destino=definitiva,
+        con_modelos=True,
+        resultado_publico=resultado_publico,
+    )
     try:
         salida = exportar(repo, carpeta, run_dir, commit, definitiva)
         info, destino = salida["info"], salida["destino"]
