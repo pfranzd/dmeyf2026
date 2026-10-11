@@ -133,6 +133,7 @@ def promover(
     destino: Path = DIR_DEFINITIVA,
     desde_crudo: bool = True,
     con_modelos: bool = False,
+    resultado_publico: float | None = None,
 ) -> Path:
     """Escribe config.yaml, params.json y entrega.json en `destino` a partir de un run.
 
@@ -210,12 +211,15 @@ def promover(
         encoding="utf-8",
         newline="\n",
     )
-    # Si se vuelve a promover el mismo run, se conserva el resultado público ya anotado.
-    resultado_publico = None
+    # Si se vuelve a promover el mismo run con el mismo corte, se conserva el resultado público.
     previo = destino / "entrega.json"
-    if previo.exists():
+    if resultado_publico is None and previo.exists():
         anterior = json.loads(previo.read_text(encoding="utf-8"))
-        if anterior.get("run") == ruta_relativa(run_dir):
+        # el puntaje es de un corte concreto: solo se conserva si es el mismo run y el mismo corte
+        if (
+            anterior.get("run") == ruta_relativa(run_dir)
+            and anterior.get("envios") == envios
+        ):
             resultado_publico = anterior.get("resultado_publico")
     info = {
         "run": ruta_relativa(run_dir),
