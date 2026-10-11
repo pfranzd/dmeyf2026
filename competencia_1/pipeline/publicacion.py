@@ -35,7 +35,6 @@ URL_REPO = "https://github.com/pfranzd/dmeyf2026-entregas"
 REPO_ENTREGAS = RAIZ.parent / "dmeyf2026-entregas"
 CARPETA = "competencia_01"
 PLANTILLAS = RAIZ / "competencia_1" / "plantillas_entrega"
-CO_AUTOR = "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 # Código que viaja a la carpeta de entrega (el resto de competencia_1 no hace falta).
 CODIGO = (
@@ -564,7 +563,7 @@ def commit_y_push(repo: Path, carpeta: str, mensaje: str, push: bool) -> str:
     sh = f"{carpeta}/reproducir.sh"
     _git(repo, "update-index", "--add", "--chmod=+x", sh)
     if _git(repo, "diff", "--cached", "--name-only"):
-        _git(repo, "commit", "-q", "-m", f"{mensaje}\n\n{CO_AUTOR}")
+        _git(repo, "commit", "-q", "-m", mensaje)
     else:
         log.info("sin cambios respecto del último commit del repo de entregas")
     local = _git(repo, "rev-parse", "HEAD")
