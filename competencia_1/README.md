@@ -15,7 +15,7 @@ autocontenida (`config.yaml`), los hiperparámetros finales (`params.json`), los
 entrenados** (`modelos/`, ~140 MB) y el origen y el sha256 esperado del CSV (`entrega.json`). No
 depende de `configs/exp/`, de `work/` ni de Optuna: solo del dataset crudo de la cátedra.
 
-- **Reproducción rápida (por defecto, ~15 min, ~10 GB de RAM):** reconstruye los datos y las
+- **Reproducción rápida (por defecto, ~16 min, ~10 GB de RAM):** reconstruye los datos y las
   features desde el crudo y **solo predice** con los modelos guardados. Un modelo guardado y
   vuelto a cargar predice idéntico bit a bit, así que el CSV es el mismo.
 - **Reproducción completa (`--entrenar`, ~80 min):** ignora los modelos guardados y reentrena
@@ -87,7 +87,7 @@ entonces hace commit y `push` y verifica con `ls-remote` que el remoto quedó en
 algo falla no se sube nada. `--validar entrenar|completo` valida reentrenando / rehaciendo
 también Optuna; `--inicializar` es solo para el primer commit del repo vacío.
 La entrega exportada se replica con `bash reproducir.sh [predecir|entrenar|completo]`
-(`predecir` ~15 min, `entrenar` ~80 min, `completo` ~2,5 h) o con `entrega.ipynb`.
+(`predecir` ~16 min, `entrenar` ~80 min, `completo` ~1,5 h) o con `entrega.ipynb`.
 
 ## Estructura
 

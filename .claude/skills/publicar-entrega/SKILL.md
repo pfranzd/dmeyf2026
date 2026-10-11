@@ -24,7 +24,7 @@ cómo usarlo sin saltarse ninguna validación.
    `git -c http.sslBackend=schannel clone https://github.com/pfranzd/dmeyf2026-entregas.git`),
    limpio, en `main` y al día con `origin`. Si el remoto está vacío, agregar `--inicializar`.
 4. **Publicar** (corre en segundo plano; tarda ~25 min con la validación `predecir`, que es el
-   mínimo aceptable; `--validar completo` suma ~2,5 h):
+   mínimo aceptable; `--validar completo` suma ~1,5 h):
 
    ```powershell
    python -m competencia_1.publicar --run work/competencia_1/runs/<run_id> --envios <N> `
