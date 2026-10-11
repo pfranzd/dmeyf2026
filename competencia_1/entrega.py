@@ -10,7 +10,7 @@
     # Reentrenar todo desde cero aunque haya modelos guardados (~80 min):
     python -m competencia_1.entrega reproducir --entrenar
 
-    # Rehacer TODO, incluida la optimización de hiperparámetros con Optuna (~2,5 h):
+    # Rehacer TODO, incluida la optimización de hiperparámetros con Optuna (~1,5 h):
     python -m competencia_1.entrega reproducir --completo
 
 `reproducir` usa DMEYF_WORK=work/entrega por defecto para no tocar la caché de los experimentos;

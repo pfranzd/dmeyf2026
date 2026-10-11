@@ -20,9 +20,9 @@ sha256 del CSV generado con el de arriba (`RESULTADO: OK, coincide`):
 
 | Modo | Qué rehace | Tiempo aprox. |
 |---|---|---|
-| `predecir` (default) | Datos y features desde el crudo, y **predice** con los @@N_MODELOS@@ modelos ya entrenados | ~15 min |
+| `predecir` (default) | Datos y features desde el crudo, y **predice** con los @@N_MODELOS@@ modelos ya entrenados | ~16 min |
 | `entrenar` | Lo anterior, pero **reentrena** los @@N_MODELOS@@ modelos con los hiperparámetros de `competencia_1/definitiva/params.json` | ~80 min |
-| `completo` | **Todo, incluida la optimización de hiperparámetros** (Optuna, @@N_TRIALS@@ trials) que dio origen a esos hiperparámetros | ~2,5 h |
+| `completo` | **Todo, incluida la optimización de hiperparámetros** (Optuna, @@N_TRIALS@@ trials) que dio origen a esos hiperparámetros | ~1,5 h |
 
 **Linux o VM de GCP:**
 
@@ -41,6 +41,10 @@ py -3.11 -m venv .venv
 $env:ENTREGA_MODO = "predecir"      # o "entrenar" / "completo"
 .venv\Scripts\python entrega.py
 ```
+
+**Verificación:** los tres modos se corrieron desde un clon limpio de este repositorio, con el entorno
+instalado desde `requirements-lock.txt` y el dataset descargado de la URL pública, y los tres generan un CSV
+con el sha256 indicado arriba (el 2026-10-10: `predecir` ~16 min, `completo` ~92 min).
 
 También se puede abrir `entrega.ipynb` (es el mismo código que `entrega.py`) y ejecutarlo
 completo; el modo se elige en la segunda celda.
